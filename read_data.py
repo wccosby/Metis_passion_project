@@ -1,4 +1,4 @@
-""" a neat code from https://github.com/YerevaNN/Dynamic-memory-networks-in-Theano/ """
+# a neat code from https://github.com/YerevaNN/Dynamic-memory-networks-in-Theano/
 import os
 
 from utils.data_utils import DataSet
