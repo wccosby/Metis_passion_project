@@ -16,7 +16,7 @@ class DMN_simple:
         ## initialize stuff
         ## Need
         # all the things from above
-        self.word2vec = word_vector_dim
+        self.word2vec = utils.load_glove(word_vector_dim)
         self.word_vector_dim = word_vector_dim
         self.dim = dim
         self.mode = mode
@@ -45,22 +45,16 @@ class DMN_simple:
         self.input_var = tf.placeholder(tf.float32, None, name='input_var') #TODO not sure about size of vector here
         self.question_var = tf.placeholder(tf.float32, None, name='question_var')
         self.answer_var = tf.placeholder(tf.float32,None, name='answer_var')
-        self.input_mask = tf.placeholder(tf.float32,None, name='input_mask')
-
-
-            # input var --> matrix
-            # question var --> matrix
-            # answer var --> scalar
-            # input mask --> vector
-
-
-
-
-        ## need a way to process inputs
-
+        self.input_mask = tf.placeholder(tf.int32,None, name='input_mask')
 
         ## build input module
 
+
+
+
+    self.W_inp_res_in = nn_utils.normal_param(std=0.1, shape=(self.dim, self.word_vector_size))
+    self.W_inp_res_hid = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim))
+    self.b_inp_res = nn_utils.constant_param(value=0.0, shape=(self.dim,))
 
         ## build episodic memory module
 
@@ -105,7 +99,54 @@ class DMN_simple:
                 x.set_value(y)
 
     def _process_input(self, data_raw):
-        pass
+        questions = []
+        inputs = []
+        answers = []
+        input_masks = []
+        for x in data_raw:
+            # get the "story"
+            inp = x["C"].lower().split(' ')
+            # add each word in the story to the word list for the input
+            inp = [w for w in inp if len(w) > 0]
+            # get the question
+            q = x["Q"].lower().split(' ')
+            # add each word in the story to word list for the question
+            q = [w for w in q if len(w) > 0]
+
+            # make the vector for the input
+            input_vector = [utils.process_word(word = w,
+                                        word2vec = self.word2vec,
+                                        vocab = self.vocab,
+                                        ivocab = self.ivocab,
+                                        word_vector_size = self.word_vector_dim,
+                                        to_return = "word2vec") for w in inp]
+
+            inputs.append(np.vstack(inp_vector).astype(float))
+
+            q_vector = [utils.process_word(word = w,
+                                        word2vec = self.word2vec,
+                                        vocab = self.vocab,
+                                        ivocab = self.ivocab,
+                                        word_vector_size = self.word_vector_dim,
+                                        to_return = "word2vec") for w in q]
+
+            questions.append(np.vstack(q_vector).astype(float))
+
+            answers.append(utils.process_word(word = x["A"],
+                                            word2vec = self.word2vec,
+                                            vocab = self.vocab,
+                                            ivocab = self.ivocab,
+                                            word_vector_size = self.word_vector_dim,
+                                            to_return = "index"))
+            # NOTE: here we assume the answer is one word!
+            if self.input_mask_mode == 'word':
+                input_masks.append(np.array([index for index, w in enumerate(inp)], dtype=np.int32))
+            elif self.input_mask_mode == 'sentence':
+                input_masks.append(np.array([index for index, w in enumerate(inp) if w == '.'], dtype=np.int32))
+            else:
+                raise Exception("invalid input_mask_mode")
+
+return inputs, questions, answers, input_masks
 
     def get_batches_per_epoch(self,mode):
         pass
