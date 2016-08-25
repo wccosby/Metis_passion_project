@@ -5,6 +5,7 @@ Implements the general structure of the dynamic memory network
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops import seq2seq, rnn_cell
+from tensorflow.nn.rnn_cell import GRUCell
 
 
 class DMN_simple:
@@ -47,27 +48,150 @@ class DMN_simple:
         self.answer_var = tf.placeholder(tf.float32,None, name='answer_var')
         self.input_mask = tf.placeholder(tf.int32,None, name='input_mask')
 
-        ## build input module
+        """ build input module """
+        print("==> Building input module")
+        # reset gate
+        self.W_input_reset = tf.Variable(tf.truncated_normal([self.dim, self.word_vector_size],stddev=0.2,-1,1),name="W_input_reset")
+        self.U_input_reset = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="U_input_reset")
+        self.b_input_reset = tf.Variable(tf.zeros([self.dim]), name="b_input_reset")
+
+        # update gate
+        self.W_input_update = tf.Variable(tf.truncated_normal([self.dim, self.word_vector_size],stddev=0.2,-1,1),name="W_input_update")
+        self.U_input_update = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="U_input_update")
+        self.b_input_update = tf.Variable(tf.zeros([self.dim]), name="b_input_update")
+
+        # hidden state
+        self.W_input_hidden = tf.Variable(tf.truncated_normal([self.dim, self.word_vector_size],stddev=0.2,-1,1),name="W_input_hidden")
+        self.U_input_hidden = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="U_input_hidden")
+        self.b_input_hidden = tf.Variable(tf.zeros([self.dim]), name="b_input_hidden")
 
 
+        ##TODO a little unclear on what inp_c_history actually is
+            ## --> records what memories have been recorded
+        # returns a tensor shaped [batch_size, max_time, cell.output_size]
+        input_c_history, _ = tf.nn.dynamic_rnn(
+                                cell = self.input_gru_step, # neuron type/step
+                                inputs = self.input_var, # data
+                                dtype=tf.float32)
 
+        self.input_c = input_c_history.take(self.input_mask_var, axis=0)
 
-    self.W_inp_res_in = nn_utils.normal_param(std=0.1, shape=(self.dim, self.word_vector_size))
-    self.W_inp_res_hid = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim))
-    self.b_inp_res = nn_utils.constant_param(value=0.0, shape=(self.dim,))
+        self.q_q, _ = tf.nn.dynamic_rnn(
+                                cell = self.input_gru_step, # neuron type/step
+                                inputs = self.input_var, # data
+                                dtype=tf.float32)
 
+        # get the output of the last step of the GRU
+        self.q_q = self.q_q[-1]
+
+        """ Episodic memory module """
+        print("==> Buidling components for episodic memory module")
         ## build episodic memory module
+        # make parameters for memory module --> memory module also uses a GRU
+        # memory reset gate
+        self.W_memory_reset = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="W_memory_reset")
+        self.U_memory_reset = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="U_memory_reset")
+        self.b_memory_reset = tf.Variable(tf.zeros([self.dim]), name="b_memory_reset")
 
+        # memory update gate
+        self.W_memory_reset = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="W_memory_update")
+        self.U_memory_reset = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="U_memory_update")
+        self.b_memory_reset = tf.Variable(tf.zeros([self.dim]), name="b_memory_reset")
+
+        # memory hidden
+        self.W_memory_hidden = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="W_memory_hidden")
+        self.U_memory_hidden = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="U_memory_hidden")
+        self.b_memory_hidden = tf.Variable(tf.zeros([self.dim]), name="b_memory_hidden")
+
+        # TODO figure out what this is
+        ## attention mechanism, standard 2 layer neural network
+        self.W_b = tf.Variable(tf.truncated_normal([self.dim, self.dim],sttdev=0.1))
+        self.W_1 = tf.Variable(tf.truncated_normal([self.dim, 7*self.dim+2],sttdev=0.1))
+        self.W_2 = tf.Variable(tf.truncated_normal([1, self.dim],stddev=0.1))
+        self.b_1 = tf.Variable(tf.zeros([self.dim]))
+        self.b_2 = tf.Variable(tf.zeros([1]))
+
+        print("==> Building episodic memory module (fixed number of steps: %d)" % self.memory_hops)
+        memory = [self.q_q.copy()] # add the question into the memory
+        for iter in range(1, self.memory_hops + 1):
+            current_episode = self.new_episode(memory[iter-1]) # make a new episode based on previous memory
         ## build answer module
 
+        print "==> building episodic memory module (fixed number of steps: %d)" % self.memory_hops
+        memory = [self.q_q.copy()]
+        for iter in range(1, self.memory_hops + 1):
+            current_episode = self.new_episode(memory[iter - 1])
+            memory.append(self.GRU_update(memory[iter - 1], current_episode,
+                                          self.W_mem_res_in, self.W_mem_res_hid, self.b_mem_res,
+                                          self.W_mem_upd_in, self.W_mem_upd_hid, self.b_mem_upd,
+                                          self.W_mem_hid_in, self.W_mem_hid_hid, self.b_mem_hid))
 
-    def GRU_update(self, h, x, W_reset, U_reset, b_reset,
+        last_mem = memory[-1]
+
+        print "==> building answer module"
+        self.W_a = nn_utils.normal_param(std=0.1, shape=(self.vocab_size, self.dim))
+
+        if self.answer_module == 'feedforward':
+            self.prediction = nn_utils.softmax(T.dot(self.W_a, last_mem))
+
+        elif self.answer_module == 'recurrent':
+            self.W_ans_res_in = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim + self.vocab_size))
+            self.W_ans_res_hid = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim))
+            self.b_ans_res = nn_utils.constant_param(value=0.0, shape=(self.dim,))
+
+            self.W_ans_upd_in = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim + self.vocab_size))
+            self.W_ans_upd_hid = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim))
+            self.b_ans_upd = nn_utils.constant_param(value=0.0, shape=(self.dim,))
+
+            self.W_ans_hid_in = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim + self.vocab_size))
+            self.W_ans_hid_hid = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim))
+            self.b_ans_hid = nn_utils.constant_param(value=0.0, shape=(self.dim,))
+
+            def answer_step(prev_a, prev_y):
+                a = self.GRU_update(prev_a, T.concatenate([prev_y, self.q_q]),
+                                  self.W_ans_res_in, self.W_ans_res_hid, self.b_ans_res,
+                                  self.W_ans_upd_in, self.W_ans_upd_hid, self.b_ans_upd,
+                                  self.W_ans_hid_in, self.W_ans_hid_hid, self.b_ans_hid)
+
+                y = nn_utils.softmax(T.dot(self.W_a, a))
+                return [a, y]
+
+            # TODO: add conditional ending
+            dummy = theano.shared(np.zeros((self.vocab_size, ), dtype=floatX))
+            results, updates = theano.scan(fn=answer_step,
+                outputs_info=[last_mem, T.zeros_like(dummy)],
+                n_steps=1)
+            self.prediction = results[1][-1]
+
+        else:
+raise Exception("invalid answer_module")
+
+
+
+
+
+
+
+
+
+
+
+
+    def GRU_update(self, prev_h, x, W_reset, U_reset, b_reset,
                     W_update, U_update, b_update,
                     W_hidden, U_hidden, b_hidden):
-        pass
+        """ Math operations for each gru step """
+        z = tf.sigmoid(tf.matmul(W_update, x) + tf.matmul(U_update, prev_h) + b_update)
+        r = tf.sigmoid(tf.matmul(W_reset, x) + tf.matmul(U_reset, prev_h) + b_update)
+        _h = tf.tanh(tf.matmul(W_hidden, x) + tf.matmul(U_hidden, prev_h) + b_hidden)
+        h_new = z * prev_h + (1-z) * _h
+        return h_new
+
 
     def input_gru_step(self, x, prev_h):
-        pass
+        return self.GRU_update(prev_h, x, self.W_input_reset, self.U_input_reset, self.b_input_reset,
+                                    self.W_input_update, self.U_input_update, self.b_input_update,
+                                    self.W_input_hidden, self.U_input_hidden, self.b_input_hidden)
 
     def new_attention_step(self, ct, prev_g, mem, q_q):
         pass
@@ -75,8 +199,33 @@ class DMN_simple:
     def new_episode_step(self, ct, g, prev_h):
         pass
 
+    # TODO figure out episode steps a little/lot better
     def new_episode(self, mem):
-        pass
+        g,g_updates = tf.nn.dynamic_rnn(
+                        cell = self.new_attention_step,
+                        inputs = self.input_c,
+
+
+        )
+        inputs = self.input_var, # data
+        dtype=tf.float32)
+
+
+
+
+            g, g_updates = theano.scan(fn=self.new_attention_step,
+            sequences=self.inp_c,
+            non_sequences=[mem, self.q_q],
+            outputs_info=T.zeros_like(self.inp_c[0][0]))
+
+        if (self.normalize_attention):
+            g = nn_utils.softmax(g)
+
+        e, e_updates = theano.scan(fn=self.new_episode_step,
+            sequences=[self.inp_c, g],
+            outputs_info=T.zeros_like(self.inp_c[0]))
+
+return e[-1]
 
     def save_params(self, file_name, epoch, **kwargs):
         with open(file_name, 'w') as save_file:
