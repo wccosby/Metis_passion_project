@@ -94,9 +94,9 @@ class DMN_simple:
         self.b_memory_reset = tf.Variable(tf.zeros([self.dim]), name="b_memory_reset")
 
         # memory update gate
-        self.W_memory_reset = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="W_memory_update")
-        self.U_memory_reset = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="U_memory_update")
-        self.b_memory_reset = tf.Variable(tf.zeros([self.dim]), name="b_memory_reset")
+        self.W_memory_update = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="W_memory_update")
+        self.U_memory_update = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="U_memory_update")
+        self.b_memory_update = tf.Variable(tf.zeros([self.dim]), name="b_memory_reset")
 
         # memory hidden
         self.W_memory_hidden = tf.Variable(tf.truncated_normal([self.dim, self.dim],stddev=0.2,-1,1),name="W_memory_hidden")
@@ -107,26 +107,23 @@ class DMN_simple:
         ## attention mechanism, standard 2 layer neural network
         self.W_b = tf.Variable(tf.truncated_normal([self.dim, self.dim],sttdev=0.1))
         self.W_1 = tf.Variable(tf.truncated_normal([self.dim, 7*self.dim+2],sttdev=0.1))
-        self.W_2 = tf.Variable(tf.truncated_normal([1, self.dim],stddev=0.1))
         self.b_1 = tf.Variable(tf.zeros([self.dim]))
+        self.W_2 = tf.Variable(tf.truncated_normal([1, self.dim],stddev=0.1))
         self.b_2 = tf.Variable(tf.zeros([1]))
 
         print("==> Building episodic memory module (fixed number of steps: %d)" % self.memory_hops)
-        memory = [self.q_q.copy()] # add the question into the memory
-        for iter in range(1, self.memory_hops + 1):
-            current_episode = self.new_episode(memory[iter-1]) # make a new episode based on previous memory
+        memory = [self.q_q.copy()] # initialize the outer gru/memory state with the question vector
+        for iter in range(1, self.memory_hops + 1): # the outer gru runs for the number of memory hops
+            current_episode = self.new_episode(memory[iter-1]) # make a new episode based on previous memory (the inner gru)
+            memory.append(self.GRU_update(memory[iter-1],current_episode,
+                                            self.W_memory_reset, self.U_memory_reset, self.b_memory_reset,
+                                            self.W_memory_update, self.U_memory_update, self.b_memory_update,
+                                            self.W_memory_hidden, self.U_memory_hidden, self.b_memory_hidden)
+        last_mem = memory[-1]
         ## build answer module
 
-        print "==> building episodic memory module (fixed number of steps: %d)" % self.memory_hops
-        memory = [self.q_q.copy()]
-        for iter in range(1, self.memory_hops + 1):
-            current_episode = self.new_episode(memory[iter - 1])
-            memory.append(self.GRU_update(memory[iter - 1], current_episode,
-                                          self.W_mem_res_in, self.W_mem_res_hid, self.b_mem_res,
-                                          self.W_mem_upd_in, self.W_mem_upd_hid, self.b_mem_upd,
-                                          self.W_mem_hid_in, self.W_mem_hid_hid, self.b_mem_hid))
 
-        last_mem = memory[-1]
+
 
         print "==> building answer module"
         self.W_a = nn_utils.normal_param(std=0.1, shape=(self.vocab_size, self.dim))
@@ -193,27 +190,39 @@ raise Exception("invalid answer_module")
                                     self.W_input_update, self.U_input_update, self.b_input_update,
                                     self.W_input_hidden, self.U_input_hidden, self.b_input_hidden)
 
+    """ attention mechanism is a standard neural network"""
     def new_attention_step(self, ct, prev_g, mem, q_q):
-        pass
+        cWq = T.stack([T.dot(T.dot(ct, self.W_b), q_q)])
+        cWm = T.stack([T.dot(T.dot(ct, self.W_b), mem)])
+        z = T.concatenate([ct, mem, q_q, ct * q_q, ct * mem, T.abs_(ct - q_q), T.abs_(ct - mem), cWq, cWm])
+
+        l_1 = T.dot(self.W_1, z) + self.b_1
+        l_1 = T.tanh(l_1)
+        l_2 = T.dot(self.W_2, l_1) + self.b_2
+        G = T.nnet.sigmoid(l_2)[0]
+        return G
 
     def new_episode_step(self, ct, g, prev_h):
-        pass
+        gru = self.GRU_update(prev_h, ct,
+                     self.W_mem_res_in, self.W_mem_res_hid, self.b_mem_res,
+                     self.W_mem_upd_in, self.W_mem_upd_hid, self.b_mem_upd,
+                     self.W_mem_hid_in, self.W_mem_hid_hid, self.b_mem_hid)
+
+        h = g * gru + (1 - g) * prev_h
+        return h
 
     # TODO figure out episode steps a little/lot better
     def new_episode(self, mem):
-        g,g_updates = tf.nn.dynamic_rnn(
-                        cell = self.new_attention_step,
-                        inputs = self.input_c,
-
-
-        )
-        inputs = self.input_var, # data
-        dtype=tf.float32)
+        g,g_updates = tf.scan(
+                        fn = self.new_attention_step,
+                        elems = (self.input_c,mem,self.q_q),
+                        initializer=self.q_q)
 
 
 
 
-            g, g_updates = theano.scan(fn=self.new_attention_step,
+
+        g, g_updates = theano.scan(fn=self.new_attention_step,
             sequences=self.inp_c,
             non_sequences=[mem, self.q_q],
             outputs_info=T.zeros_like(self.inp_c[0][0]))
