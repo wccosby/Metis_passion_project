@@ -23,8 +23,8 @@ flags.DEFINE_float("anneal_ratio", 0.5, "Annealing ratio [0.5]")
 flags.DEFINE_integer("anneal_period", 25, "Number of epochs for every annealing [25]")
 
 # Common options
-flags.DEFINE_boolean("train", True, "Train? Test if False [False]")
-flags.DEFINE_boolean("load", False, "Load from saved model? [False]")
+flags.DEFINE_boolean("train", False, "Train? Test if False [False]")
+flags.DEFINE_boolean("load", True, "Load from saved model? [False]")
 flags.DEFINE_boolean("progress", True, "Show progress? [True]")
 flags.DEFINE_boolean("gpu", False, 'Enable GPU? (Linux only) [False]')
 flags.DEFINE_integer("val_period", 5, "Val period (for display purpose only) [5]")
@@ -52,46 +52,51 @@ FLAGS = flags.FLAGS
 
 
 def main(_):
-    train_ds, test_ds = read_data.read_babi(FLAGS.batch_size, FLAGS.data_dir, FLAGS.task)
-    train_ds, val_ds = read_data.split_val(train_ds, FLAGS.val_ratio)
-    train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
-    FLAGS.vocab_size = test_ds.vocab_size
-    FLAGS.max_sent_size, FLAGS.max_ques_size = read_data.get_max_sizes(train_ds, val_ds, test_ds)
-    # FIXME : adhoc for now!
-    FLAGS.max_sent_size = max(FLAGS.max_sent_size, FLAGS.max_ques_size)
-    FLAGS.train_num_batches = train_ds.num_batches
-    FLAGS.val_num_batches = val_ds.num_batches
-    FLAGS.test_num_batches = test_ds.num_batches
-    if not os.path.exists(FLAGS.save_dir):
-        os.mkdir(FLAGS.save_dir)
+    results=[]
+    for i in range(1,21):
+        task = i
+        # create train and test data w/ batch_size and task #
+        train_ds, test_ds = read_data.read_babi(FLAGS.batch_size, FLAGS.data_dir, task)
+        train_ds, val_ds = read_data.split_val(train_ds, FLAGS.val_ratio)
+        train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
 
-    if FLAGS.linear_start:
-        FLAGS.num_epochs = FLAGS.ls_num_epochs
-        FLAGS.init_lr = FLAGS.ls_init_lr
+        FLAGS.vocab_size = test_ds.vocab_size # get the size of the vocabulary
+        FLAGS.max_sent_size, FLAGS.max_ques_size = read_data.get_max_sizes(train_ds, val_ds, test_ds)
+        # FIXME : adhoc for now!
+        FLAGS.max_sent_size = max(FLAGS.max_sent_size, FLAGS.max_ques_size)
+        FLAGS.train_num_batches = train_ds.num_batches
+        FLAGS.val_num_batches = val_ds.num_batches
+        FLAGS.test_num_batches = test_ds.num_batches
+        if not os.path.exists(FLAGS.save_dir):
+            os.mkdir(FLAGS.save_dir)
 
-    if FLAGS.draft:
-        FLAGS.num_layers = 1
-        FLAGS.num_epochs = 1
-        FLAGS.eval_period = 1
-        FLAGS.ls_duration = 1
-        FLAGS.train_num_batches = 1
-        FLAGS.test_num_batches = 1
-        FLAGS.save_period = 1
+        if FLAGS.linear_start:
+            FLAGS.num_epochs = FLAGS.ls_num_epochs
+            FLAGS.init_lr = FLAGS.ls_init_lr
 
-    pprint(FLAGS.__flags)
+        if FLAGS.draft:
+            FLAGS.num_layers = 1
+            FLAGS.num_epochs = 1
+            FLAGS.eval_period = 1
+            FLAGS.ls_duration = 1
+            FLAGS.train_num_batches = 1
+            FLAGS.test_num_batches = 1
+            FLAGS.save_period = 1
 
-    graph = tf.Graph()
-    model = n2nModel(graph, FLAGS)
-    with tf.Session(graph=graph) as sess:
-        sess.run(tf.initialize_all_variables())
-        if FLAGS.train:
-            writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
-            if FLAGS.load:
+        pprint(FLAGS.__flags)
+
+        graph = tf.Graph()
+        model = n2nModel(graph, FLAGS)
+        with tf.Session(graph=graph) as sess:
+            sess.run(tf.initialize_all_variables())
+            if FLAGS.train:
+                writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
+                if FLAGS.load:
+                    model.load(sess)
+                model.train(sess, writer, train_ds, val_ds)
+            else:
                 model.load(sess)
-            model.train(sess, writer, train_ds, val_ds)
-        else:
-            model.load(sess)
-            model.eval(sess, test_ds)
+                model.eval(sess, test_ds)
 
 if __name__ == "__main__":
     tf.app.run()

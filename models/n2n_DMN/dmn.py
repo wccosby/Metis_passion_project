@@ -20,7 +20,6 @@ class MemoryLayer(object):
 
         linear_start = params.linear_start # controls if softmaxes are removed initially vs having softmaxes from the beginning
 
-        # TODO clear up what exactly 'phs' is referring to
         x_batch, x_mask_aug_batch, m_mask_batch = phs.x_batch, phs.x_mask_aug_batch, phs.m_mask_batch
         l_aug_aug = constants.l_aug_aug # positional encoding of input
 
@@ -143,10 +142,9 @@ class n2nModel(BaseModel):
             # define learning rate
             learning_rate = tf.placeholder('float',name='learning_rate')
 
-        ## TODO positional encoding
         ## define constants (l, l_aug, l_aug_aug)
         with tf.name_scope('constants'):
-            l = self._get_l() #TODO implement ._get_l()
+            l = self._get_l()
             l_aug = tf.expand_dims(l,0,name='l_aug')
             l_aug_aug = tf.expand_dims(l,0,name='l_aug_aug')
 
@@ -260,6 +258,9 @@ class n2nModel(BaseModel):
         p_batch = tf.div(masked_batch, sum_2d_batch, name='p')  # [N, M]
         return p_batch
 
+    """
+    loads the placeholders with data
+    """
     def _get_feed_dict(self,batch):
         sent_batch, ques_batch = batch[:2]
         if len(batch) > 2:
@@ -275,10 +276,17 @@ class n2nModel(BaseModel):
 
     def _prepro_sent_batch(self,sent_batch):
         params = self.params
-        N, M, J = params.batch_size, params.memory_size, params.max_sent_size
-        x_batch = np.zeros([N, M, J])
-        x_mask_batch = np.zeros([N, M, J])
-        m_mask_batch = np.zeros([N, M])
+        # define some dimensions
+        batch_size = params.batch_size
+        memory_size = params.memory_size
+        sent_size = params.max_sent_size
+
+        # initialize x, mask, and memory vectors
+        x_batch = np.zeros([batch_size, memory_size, sent_size])
+        x_mask_batch = np.zeros([batch_size, memory_size, sent_size])
+        m_mask_batch = np.zeros([batch_size, memory_size])
+
+        # TODO wat is dis
         for n, i, j in np.ndindex(x_batch.shape):
             if i < len(sent_batch[n]) and j < len(sent_batch[n][-i-1]):
                 x_batch[n, i, j] = sent_batch[n][-i-1][j]
@@ -293,10 +301,15 @@ class n2nModel(BaseModel):
     def _prepro_ques_batch(self, ques_batch):
         params = self.params
         # FIXME : adhoc for now!
-        N, J = params.batch_size, params.max_sent_size
-        q_batch = np.zeros([N, J])
-        q_mask_batch = np.zeros([N, J])
+        # defining dimensions
+        batch_size = params.batch_size
+        sent_size = params.max_sent_size
 
+        # initializing the batches
+        q_batch = np.zeros([batch_size, sent_size])
+        q_mask_batch = np.zeros([batch_size, sent_size])
+
+        # TODO some kind of stuff
         for n, j in np.ndindex(q_batch.shape):
             if j < len(ques_batch[n]):
                 q_batch[n, j] = ques_batch[n][j]
