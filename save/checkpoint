@@ -1,0 +1,4 @@
+model_checkpoint_path: "n2nModel-840"
+all_model_checkpoint_paths: "n2nModel-280"
+all_model_checkpoint_paths: "n2nModel-560"
+all_model_checkpoint_paths: "n2nModel-840"

@@ -109,4 +109,7 @@ class BaseModel(object):
     def load(self, sess):
         print("loading model ...")
         checkpoint = tf.train.get_checkpoint_state(self.save_dir)
-        self.saver.restore(sess, checkpoint.model_checkpoint_path)
+        try:
+            self.saver.restore(sess, checkpoint.model_checkpoint_path)
+        except:
+            print("couldnt load a checkpoint")
