@@ -237,7 +237,7 @@ class n2nModel(BaseModel):
         self.acc = acc
         self.opt_op = opt_op
 
-        # summaries
+        # summaries --> for tensorboard
         summaries.append(tf.scalar_summary("%s (raw)" % total_loss.op.name, total_loss))
         self.merged_summary = tf.merge_summary(summaries)
 
