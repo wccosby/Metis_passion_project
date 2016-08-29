@@ -52,51 +52,48 @@ FLAGS = flags.FLAGS
 
 
 def main(_):
-    results=[]
-    for i in range(1,21):
-        task = i
-        # create train and test data w/ batch_size and task #
-        train_ds, test_ds = read_data.read_babi(FLAGS.batch_size, FLAGS.data_dir, task)
-        train_ds, val_ds = read_data.split_val(train_ds, FLAGS.val_ratio)
-        train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
+    # create train and test data w/ batch_size and task #
+    train_ds, test_ds = read_data.read_babi(FLAGS.batch_size, FLAGS.data_dir, FLAGS.task)
+    train_ds, val_ds = read_data.split_val(train_ds, FLAGS.val_ratio)
+    train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
 
-        FLAGS.vocab_size = test_ds.vocab_size # get the size of the vocabulary
-        FLAGS.max_sent_size, FLAGS.max_ques_size = read_data.get_max_sizes(train_ds, val_ds, test_ds)
-        # FIXME : adhoc for now!
-        FLAGS.max_sent_size = max(FLAGS.max_sent_size, FLAGS.max_ques_size)
-        FLAGS.train_num_batches = train_ds.num_batches
-        FLAGS.val_num_batches = val_ds.num_batches
-        FLAGS.test_num_batches = test_ds.num_batches
-        if not os.path.exists(FLAGS.save_dir):
-            os.mkdir(FLAGS.save_dir)
+    FLAGS.vocab_size = test_ds.vocab_size # get the size of the vocabulary
+    FLAGS.max_sent_size, FLAGS.max_ques_size = read_data.get_max_sizes(train_ds, val_ds, test_ds)
+    # FIXME : adhoc for now!
+    FLAGS.max_sent_size = max(FLAGS.max_sent_size, FLAGS.max_ques_size)
+    FLAGS.train_num_batches = train_ds.num_batches
+    FLAGS.val_num_batches = val_ds.num_batches
+    FLAGS.test_num_batches = test_ds.num_batches
+    if not os.path.exists(FLAGS.save_dir):
+        os.mkdir(FLAGS.save_dir)
 
-        if FLAGS.linear_start:
-            FLAGS.num_epochs = FLAGS.ls_num_epochs
-            FLAGS.init_lr = FLAGS.ls_init_lr
+    if FLAGS.linear_start:
+        FLAGS.num_epochs = FLAGS.ls_num_epochs
+        FLAGS.init_lr = FLAGS.ls_init_lr
 
-        if FLAGS.draft:
-            FLAGS.num_layers = 1
-            FLAGS.num_epochs = 1
-            FLAGS.eval_period = 1
-            FLAGS.ls_duration = 1
-            FLAGS.train_num_batches = 1
-            FLAGS.test_num_batches = 1
-            FLAGS.save_period = 1
+    if FLAGS.draft:
+        FLAGS.num_layers = 1
+        FLAGS.num_epochs = 1
+        FLAGS.eval_period = 1
+        FLAGS.ls_duration = 1
+        FLAGS.train_num_batches = 1
+        FLAGS.test_num_batches = 1
+        FLAGS.save_period = 1
 
-        pprint(FLAGS.__flags)
+    pprint(FLAGS.__flags)
 
-        graph = tf.Graph()
-        model = n2nModel(graph, FLAGS)
-        with tf.Session(graph=graph) as sess:
-            sess.run(tf.initialize_all_variables())
-            if FLAGS.train:
-                writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
-                if FLAGS.load:
-                    model.load(sess)
-                model.train(sess, writer, train_ds, val_ds)
-            else:
+    graph = tf.Graph()
+    model = n2nModel(graph, FLAGS)
+    with tf.Session(graph=graph) as sess:
+        sess.run(tf.initialize_all_variables())
+        if FLAGS.train:
+            writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
+            if FLAGS.load:
                 model.load(sess)
-                model.eval(sess, test_ds)
+            model.train(sess, writer, train_ds, val_ds)
+        else:
+            model.load(sess)
+            model.eval(sess, test_ds)
 
 if __name__ == "__main__":
     tf.app.run()
