@@ -232,7 +232,7 @@ def read_babi_split(batch_size, *file_paths_list):
     qs_list = [[[_get(vocab_map, word) for word in question] for question in questions] for questions in questions_list]
     ys_list = [[_get(vocab_map, answer) for answer in answers] for answers in answers_list]
 
-    data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)
+    data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)44
                  for xs, qs, ys in zip(xs_list, qs_list, ys_list)]
     # just for debugging
     for data_set in data_sets:

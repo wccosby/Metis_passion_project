@@ -11,6 +11,7 @@ flags = tf.app.flags
 # File directories
 flags.DEFINE_string("log_dir", "log", "Log directory [log]")
 flags.DEFINE_string("data_dir", 'data/babi/en/', "Data folder directory [data/babi/en]")
+flags.DEFIN_string("amazon_data_dir", 'data/amazon/', "Amazon data folder [data/amazon/]")
 flags.DEFINE_string("save_dir", "save", "Save path [save]")
 
 # Common training parameters
@@ -45,6 +46,7 @@ flags.DEFINE_boolean("position_encoding", True, "Position encoding enabled? 'Tru
 flags.DEFINE_string("tying", 'adj', "Indicate tying method: 'adj' or 'rnn' [adj]")
 
 # Specific options
+flags.DEFINE_string("data_group",'babi',"Running model on: 'babi' or 'amazon' [babi]")
 flags.DEFINE_integer("task", 1, "Task number [1]")
 flags.DEFINE_float("val_ratio", 0.1, "Validation data ratio to training data [0.1]")
 
@@ -54,9 +56,14 @@ FLAGS = flags.FLAGS
 def main(_):
     # create train and test data w/ batch_size and task #
     ''' Controls loading the data set and creating the training/testing formats '''
-    train_ds, test_ds = read_data.read_babi(FLAGS.batch_size, FLAGS.data_dir, FLAGS.task)
-    train_ds, val_ds = read_data.split_val(train_ds, FLAGS.val_ratio)
-    train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
+    if FLAGS.data_group == 'babi':
+        train_ds, test_ds = read_data.read_babi(FLAGS.batch_size, FLAGS.data_dir, FLAGS.task)
+        train_ds, val_ds = read_data.split_val(train_ds, FLAGS.val_ratio)
+        train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
+    else:
+        train_ds, test_ds = read_data.read_babi_amazon(FLAGS.batch_size, FLAGS.amazon_data_dir)
+        train_ds, val_ds = read_data.split_val_amazon(train_ds, FLAGS.val_ratio)
+        train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
 
     FLAGS.vocab_size = test_ds.vocab_size # get the size of the vocabulary
     FLAGS.max_sent_size, FLAGS.max_ques_size = read_data.get_max_sizes(train_ds, val_ds, test_ds)
