@@ -53,6 +53,7 @@ FLAGS = flags.FLAGS
 
 def main(_):
     # create train and test data w/ batch_size and task #
+    ''' Controls loading the data set and creating the training/testing formats '''
     train_ds, test_ds = read_data.read_babi(FLAGS.batch_size, FLAGS.data_dir, FLAGS.task)
     train_ds, val_ds = read_data.split_val(train_ds, FLAGS.val_ratio)
     train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
