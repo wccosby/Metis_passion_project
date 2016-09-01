@@ -210,6 +210,58 @@ def read_babi_files(file_paths):
 
     return vocab_set, paragraphs, questions, answers
 
+'''
+called from read_amazon_split
+defines the vocabulary, paragraphs (x input), questions and answers
+'''
+def read_amazon_files(file_paths):
+    ## returns:
+        # vocab_set --> set of all words in the vocabulary
+        # paragraphs --> list of lists of lists of all stories
+            # --> each sublist is a "story/paragraph/fact set"
+                # --> each sub-sub-list is a sentence in that story/paragraph/fact set
+        # questions --> list of all questions on the stories (should match 1 to 1 with the stories)
+        # answers --> list of all answers to all the questions
+
+    # initialize all the stuffz
+    vocab_set = set()
+    paragraphs = []
+    questions = []
+    answers = []
+
+    # in case i ever pass in multiple files instead of just one
+    for file_path in file_paths:
+        with open(file_path, 'r') as fh:
+            lines = fh.readlines()
+            paragraph = []
+            for line_num, line in enumerate(lines):
+                # sm = _s_re.match(line) # matches pattern of a sentence
+                # qm = _q_re.match(line) # matches pattern of a question
+
+                # if it is a question
+                if qm:
+                    id_, raw_question, answer, support = qm.groups()
+                    question = _tokenize(raw_question)
+                    paragraphs.append(paragraph[:])
+                    questions.append(question)
+                    answers.append(answer)
+                    vocab_set |= set(question)
+                    vocab_set.add(answer)
+
+                # if it is a sentence in the paragraph/story
+                elif sm:
+                    id_, raw_sentence = sm.groups()
+                    sentence = _tokenize(raw_sentence) # tokenize the sentence
+                    if id_ == '1':
+                        paragraph = []
+                    paragraph.append(sentence)
+                    vocab_set |= set(sentence)
+                else:
+                    logging.error("Invalid line encountered: line %d in %s" % (line_num + 1, file_path))
+            print("Loaded %d examples from: %s" % (len(paragraphs), os.path.basename(file_path)))
+
+    return vocab_set, paragraphs, questions, answers
+
 
 ''' called in return statement of read_babi '''
 def read_babi_split(batch_size, *file_paths_list):
@@ -240,7 +292,40 @@ def read_babi_split(batch_size, *file_paths_list):
         data_set.vocab_size = len(vocab_map)
     return data_sets
 
+''' Reading in amazon data '''
+##TODO
+# word vectors~~~~~
+def read_amazon_split(batch_size, train_file_path, test_file_path):
+    # calls read_amazon_files
+    vocab_set_list, paragraphs_list, questions_list, answers_list = zip(*[read_amazon_files(file_paths) for file_paths in file_paths_list])
+    vocab_set = vocab_set_list[0]
+    vocab_map = dict((v, k+1) for k, v in enumerate(sorted(vocab_set))) # this is word -> index (i think) with '<UNK>' as index=0
+    vocab_map["<UNK>"] = 0
 
+    ''' get the index of the word, return index for <UNK> token if word is not in the vocabulary '''
+    def _get(vm, w): # w = word, vm = vocabulary_map
+        if w in vm:
+            return vm[w]
+        return 0
+
+    ''' this is basically the final step in making the data sets '''
+    # TODO word2vec or glove vectors here instead of just indices
+    ## Makes the inputs to the networks (why u mke dis so complicated???? quadruple nested list comprehensions??? REALLY???)
+    xs_list = [[[[_get(vocab_map, word) for word in sentence] for sentence in paragraph] for paragraph in paragraphs] for paragraphs in paragraphs_list]
+    qs_list = [[[_get(vocab_map, word) for word in question] for question in questions] for questions in questions_list]
+    ys_list = [[_get(vocab_map, answer) for answer in answers] for answers in answers_list]
+
+    data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)44
+                 for xs, qs, ys in zip(xs_list, qs_list, ys_list)]
+    # just for debugging
+    for data_set in data_sets:
+        data_set.vocab_map = vocab_map
+        data_set.vocab_size = len(vocab_map)
+    # return data_setst
+    pass
+
+
+''' reading in babi data '''
 def read_babi(batch_size, dir_path, task, suffix=""):
     prefix = "qa%s_" % str(task)
     train_file_paths = []
@@ -253,6 +338,12 @@ def read_babi(batch_size, dir_path, task, suffix=""):
             test_file_paths.append(file_path)
             ''' calls read_babi_split '''
     return read_babi_split(batch_size, train_file_paths, test_file_paths)
+
+''' reading in amazon data '''
+def read_amazon(batch_size, file_name, suffix=""):
+    train_file_path = "" + file_name + "_train"
+    test_file_path = "" + file_name + "_train"
+    return read_amazon_split(batch_size, train_file_path, test_file_path)
 
 
 def split_val(data_set, ratio):

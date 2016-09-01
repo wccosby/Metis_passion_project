@@ -61,11 +61,12 @@ def main(_):
         train_ds, val_ds = read_data.split_val(train_ds, FLAGS.val_ratio)
         train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
     else:
-        train_ds, test_ds = read_data.read_babi_amazon(FLAGS.batch_size, FLAGS.amazon_data_dir)
+        train_ds, test_ds = read_data.read_amazon(FLAGS.batch_size, FLAGS.amazon_data_dir)
         train_ds, val_ds = read_data.split_val_amazon(train_ds, FLAGS.val_ratio)
         train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
 
     FLAGS.vocab_size = test_ds.vocab_size # get the size of the vocabulary
+    ##TODO check if get_max_sizes needs to be adjusted to make this all work correctly
     FLAGS.max_sent_size, FLAGS.max_ques_size = read_data.get_max_sizes(train_ds, val_ds, test_ds)
     # FIXME : adhoc for now!
     FLAGS.max_sent_size = max(FLAGS.max_sent_size, FLAGS.max_ques_size)
