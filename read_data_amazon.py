@@ -96,40 +96,53 @@ def read_amazon_db(db_auth):
 
     # do a loop over the data
     for document in documents.find():
-        
+        # just put the answer into the document
+        answers.append(document['answer'])
+        # tokenize the question
+        question.append(_tokenize_question(document['question']))
+        # add question words into the vocab set
+        vocab_set |= set(question)
+        vocab_set.add(answer)
 
-    # in case i ever pass in multiple files instead of just one
-    for file_path in file_paths:
-        with open(file_path, 'r') as fh:
-            lines = fh.readlines()
-            paragraph = []
-            for line_num, line in enumerate(lines):
-                # sm = _s_re.match(line) # matches pattern of a sentence
-                # qm = _q_re.match(line) # matches pattern of a question
-
-                # if it is a question
-                if qm:
-                    id_, raw_question, answer, support = qm.groups()
-                    question = _tokenize(raw_question)
-                    paragraphs.append(paragraph[:])
-                    questions.append(question)
-                    answers.append(answer)
-                    vocab_set |= set(question)
-                    vocab_set.add(answer)
-
-                # if it is a sentence in the paragraph/story
-                elif sm:
-                    id_, raw_sentence = sm.groups()
-                    sentence = _tokenize(raw_sentence) # tokenize the sentence
-                    if id_ == '1':
-                        paragraph = []
-                    paragraph.append(sentence)
-                    vocab_set |= set(sentence)
-                else:
-                    logging.error("Invalid line encountered: line %d in %s" % (line_num + 1, file_path))
-            print("Loaded %d examples from: %s" % (len(paragraphs), os.path.basename(file_path)))
+        # deal with the paragraph/story thing
+        paragraph = _tokenize_story(document['description'])
+        paragraphs.append(paragraph)
+        # add to the vocab set inside the tokenize function?
 
     return vocab_set, paragraphs, questions, answers
+
+    # in case i ever pass in multiple files instead of just one
+    # for file_path in file_paths:
+    #     with open(file_path, 'r') as fh:
+    #         lines = fh.readlines()
+    #         paragraph = []
+    #         for line_num, line in enumerate(lines):
+    #             # sm = _s_re.match(line) # matches pattern of a sentence
+    #             # qm = _q_re.match(line) # matches pattern of a question
+    #
+    #             # if it is a question
+    #             if qm:
+    #                 id_, raw_question, answer, support = qm.groups()
+    #                 question = _tokenize(raw_question)
+    #                 paragraphs.append(paragraph[:])
+    #                 questions.append(question)
+    #                 answers.append(answer)
+    #                 vocab_set |= set(question)
+    #                 vocab_set.add(answer)
+    #
+    #             # if it is a sentence in the paragraph/story
+    #             elif sm:
+    #                 id_, raw_sentence = sm.groups()
+    #                 sentence = _tokenize(raw_sentence) # tokenize the sentence
+    #                 if id_ == '1':
+    #                     paragraph = []
+    #                 paragraph.append(sentence)
+    #                 vocab_set |= set(sentence)
+    #             else:
+    #                 logging.error("Invalid line encountered: line %d in %s" % (line_num + 1, file_path))
+    #         print("Loaded %d examples from: %s" % (len(paragraphs), os.path.basename(file_path)))
+
+
 
 
 
