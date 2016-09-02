@@ -1,10 +1,13 @@
 import os
 import re
 import logging
-from pprint import pprint
+import pandas as pd
 import numpy as np
-from pymongo import MongoClient
 import json
+from pprint import pprint
+from pymongo import MongoClient
+
+
 
 class DataSet(object):
     def __init__(self, batch_size, idxs, xs, qs, ys, include_leftover=False, name=""):
@@ -58,8 +61,13 @@ def _tokenize(raw):
 '''
 called from read_amazon_split
 defines the vocabulary, paragraphs (x input), questions and answers
+** db_auth should be a dictionary with the required database information
+* client_address = str
+* collection_name = str
+* username = str
+* password = str
 '''
-def read_amazon_db(file_paths):
+def read_amazon_db(db_auth):
     ## returns:
         # vocab_set --> set of all words in the vocabulary
         # paragraphs --> list of lists of lists of all stories
@@ -68,11 +76,27 @@ def read_amazon_db(file_paths):
         # questions --> list of all questions on the stories (should match 1 to 1 with the stories)
         # answers --> list of all answers to all the questions
 
+    # connect to the server with the collections/databases
+    client = MongoClient(db_auth['client_address'])
+
+    # connect to the specific collection
+    db = client[db_auth['collection_name']]
+
+    # pass in credentials
+    db.authenticate(db_auth['username'],db_auth['password'], source=db_auth['collection_name'])
+
     # initialize all the stuffz
     vocab_set = set()
     paragraphs = []
     questions = []
     answers = []
+
+    # now need a reference to the right collection
+    documents = db[db_auth['collection_name']]
+
+    # do a loop over the data
+    for document in documents.find():
+        
 
     # in case i ever pass in multiple files instead of just one
     for file_path in file_paths:
