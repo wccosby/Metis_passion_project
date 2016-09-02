@@ -158,7 +158,7 @@ class DataSet(object):
 # TODO : split data into val
 
 def _tokenize(raw):
-    tokens = re.findall(r"[\w]+", raw)
+    tokens = re.findall(r"[\w]+", raw) # finds every word
     normalized_tokens = [token.lower() for token in tokens]
     return normalized_tokens
 

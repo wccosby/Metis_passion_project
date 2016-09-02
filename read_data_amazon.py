@@ -55,8 +55,21 @@ need this to take a raw block of text and then parse it into sentences (and do
 any other data clearning that i decide needs to happen later on) and return
 a list of lists (1 list where all sublists are the sentences)
 '''
-def _tokenize(raw):
+def _tokenize_question(raw):
     pass
+
+def _tokenize_answer(raw):
+    '''
+    will get a full story, need to break it into sentences and then words
+    return a list of lists of the words in each sentence
+    '''
+    #TODO break into sentences
+    sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
+    # .join(sent_detector.tokenize(text.strip())
+
+    tokens = re.findall(r"[\w]+",raw)
+    normalized_tokens = [token.lower() for token in tokens]
+    return normalized_tokens
 
 '''
 called from read_amazon_split
@@ -110,40 +123,6 @@ def read_amazon_db(db_auth):
         # add to the vocab set inside the tokenize function?
 
     return vocab_set, paragraphs, questions, answers
-
-    # in case i ever pass in multiple files instead of just one
-    # for file_path in file_paths:
-    #     with open(file_path, 'r') as fh:
-    #         lines = fh.readlines()
-    #         paragraph = []
-    #         for line_num, line in enumerate(lines):
-    #             # sm = _s_re.match(line) # matches pattern of a sentence
-    #             # qm = _q_re.match(line) # matches pattern of a question
-    #
-    #             # if it is a question
-    #             if qm:
-    #                 id_, raw_question, answer, support = qm.groups()
-    #                 question = _tokenize(raw_question)
-    #                 paragraphs.append(paragraph[:])
-    #                 questions.append(question)
-    #                 answers.append(answer)
-    #                 vocab_set |= set(question)
-    #                 vocab_set.add(answer)
-    #
-    #             # if it is a sentence in the paragraph/story
-    #             elif sm:
-    #                 id_, raw_sentence = sm.groups()
-    #                 sentence = _tokenize(raw_sentence) # tokenize the sentence
-    #                 if id_ == '1':
-    #                     paragraph = []
-    #                 paragraph.append(sentence)
-    #                 vocab_set |= set(sentence)
-    #             else:
-    #                 logging.error("Invalid line encountered: line %d in %s" % (line_num + 1, file_path))
-    #         print("Loaded %d examples from: %s" % (len(paragraphs), os.path.basename(file_path)))
-
-
-
 
 
 ''' Reading in amazon data '''
