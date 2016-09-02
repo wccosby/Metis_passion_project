@@ -58,18 +58,23 @@ a list of lists (1 list where all sublists are the sentences)
 def _tokenize_question(raw):
     pass
 
-def _tokenize_answer(raw):
+def _tokenize_story(raw):
     '''
     will get a full story, need to break it into sentences and then words
     return a list of lists of the words in each sentence
     '''
-    #TODO break into sentences
+    # break into list of sentences
     sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
-    # .join(sent_detector.tokenize(text.strip())
+    story_sent_list = sent_detector.tokenize(text.strip())
 
-    tokens = re.findall(r"[\w]+",raw)
-    normalized_tokens = [token.lower() for token in tokens]
-    return normalized_tokens
+    # TODO break into words
+    stories = []
+    for sent in story_sent_list:
+        tokens = re.findall(r"[\w]+", sent])
+        normalized_tokens = [token.lower() for token in tokens]
+        stories.append(normalized_tokens)
+
+    return stories 
 
 '''
 called from read_amazon_split
