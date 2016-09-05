@@ -117,7 +117,7 @@ import numpy as np
 
 class DataSet(object):
     def __init__(self, batch_size, idxs, xs, qs, ys, include_leftover=False, name=""):
-        assert len(xs) == len(qs) == len(ys), "X, Q, and Y sizes don't match."
+        # assert len(xs) == len(qs) == len(ys), "X, Q, and Y sizes don't match."
         assert batch_size <= len(xs), "batch size cannot be greater than data size."
         self.name = name or "dataset"
         self.idxs = idxs
@@ -232,8 +232,18 @@ def read_babi_split(batch_size, *file_paths_list):
     qs_list = [[[_get(vocab_map, word) for word in question] for question in questions] for questions in questions_list]
     ys_list = [[_get(vocab_map, answer) for answer in answers] for answers in answers_list]
 
-    data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)44
+    print "xs size: ", len(xs_list)
+    print "qs size: ", len(qs_list)
+    print "ys size: ", len(ys_list)
+
+    for i,(xs, qs, ys) in enumerate(zip(xs_list,qs_list,ys_list)):
+        print "len xs: ",len(xs)
+        print "len qs: ",len(qs)
+        print "len ys: ",len(ys)
+
+    data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)
                  for xs, qs, ys in zip(xs_list, qs_list, ys_list)]
+    print "datasets: ",len(data_sets)
     # just for debugging
     for data_set in data_sets:
         data_set.vocab_map = vocab_map

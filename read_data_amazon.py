@@ -6,11 +6,14 @@ import numpy as np
 import json
 from pprint import pprint
 from pymongo import MongoClient
-
+import nltk.data
 
 
 class DataSet(object):
     def __init__(self, batch_size, idxs, xs, qs, ys, include_leftover=False, name=""):
+        print "xs size: ", len(xs)
+        print "qs size: ", len(qs)
+        print "ys size: ", len(ys)
         assert len(xs) == len(qs) == len(ys), "X, Q, and Y sizes don't match."
         assert batch_size <= len(xs), "batch size cannot be greater than data size."
         self.name = name or "dataset"
@@ -56,7 +59,9 @@ any other data clearning that i decide needs to happen later on) and return
 a list of lists (1 list where all sublists are the sentences)
 '''
 def _tokenize_question(raw):
-    pass
+    tokens = re.findall(r"[\w]+", raw) # finds every word
+    normalized_tokens = [token.lower() for token in tokens]
+    return normalized_tokens
 
 def _tokenize_story(raw):
     '''
@@ -65,16 +70,16 @@ def _tokenize_story(raw):
     '''
     # break into list of sentences
     sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
-    story_sent_list = sent_detector.tokenize(text.strip())
+    story_sent_list = sent_detector.tokenize(raw.strip())
 
     # TODO break into words
     stories = []
-    for sent in story_sent_list:
-        tokens = re.findall(r"[\w]+", sent])
-        normalized_tokens = [token.lower() for token in tokens]
-        stories.append(normalized_tokens)
+    for sent in story_sent_list: # loop over all the sentences in the story
+        tokens = re.findall(r"[\w]+", sent) # gets all the words in the sentence
+        normalized_tokens = [token.lower() for token in tokens] # get list of the words
+        stories.append(normalized_tokens) # add the list of words in the sentence to the list of sentences in the story
 
-    return stories 
+    return stories
 
 '''
 called from read_amazon_split
@@ -113,29 +118,71 @@ def read_amazon_db(db_auth):
     documents = db[db_auth['collection_name']]
 
     # do a loop over the data
+    count = 0 # TODO remove this, its just for testing to make things run faster
     for document in documents.find():
+        count += 1
+        if count % 1000 == 0:
+            break
         # just put the answer into the document
-        answers.append(document['answer'])
-        # tokenize the question
-        question.append(_tokenize_question(document['question']))
-        # add question words into the vocab set
-        vocab_set |= set(question)
-        vocab_set.add(answer)
+        if (type(document['facts']) == unicode):
+            answer = document['answer']
+            answers.append(answer)
+            # tokenize the question
+            question = _tokenize_question(document['question'])
+            questions.append(question)
+            # add question words into the vocab set
+            vocab_set |= set(question)
+            vocab_set.add(answer)
 
-        # deal with the paragraph/story thing
-        paragraph = _tokenize_story(document['description'])
-        paragraphs.append(paragraph)
-        # add to the vocab set inside the tokenize function?
+            # deal with the paragraph/story thing
+            # paragraph is a list of lists
+                # [[words,in,sentence,1],[words,in,sentence,2],...,[words,in,sentence,n]]
+            paragraph = _tokenize_story(document['facts'])
+            paragraphs.append(paragraph)
+            # add to the vocab set inside the tokenize function?
+            paragraph_list = []
+            questions_list = []
+            answers_list = []
 
-    return vocab_set, paragraphs, questions, answers
+            paragraph_list.append(paragraphs[:len(paragraphs)/2])
+            paragraph_list.append(paragraphs[len(paragraphs)/2:])
+
+            questions_list.append(questions[:len(questions)/2])
+            questions_list.append(questions[len(questions)/2:])
+
+            answers_list.append(answers[:len(answers)/2])
+            answers_list.append(answers[len(answers)/2:])
+
+
+    return list(vocab_set), paragraph_list, questions_list, answers_list
 
 
 ''' Reading in amazon data '''
 ##TODO
 # word vectors~~~~~
-def read_amazon_split(batch_size, train_file_path, test_file_path):
+def read_amazon_split(batch_size):
+    '''
+    Not using an exterior dictionary of words...only using the words that showed up
+    in the training...can probably make this better
+    '''
     # calls read_amazon_files
-    vocab_set_list, paragraphs_list, questions_list, answers_list = zip(*[read_amazon_db(file_paths) for file_paths in file_paths_list])
+    # * client_address = str
+    # * collection_name = str
+    # * username = str
+    # * password = str
+    db_auth = {}
+    db_auth['client_address'] = 'ds019936.mlab.com:19936'
+    db_auth['collection_name'] = 'test_network'
+    db_auth['username'] = 'wcc3af'
+    db_auth['password'] = 'test_network'
+
+    # vocab_set_list, paragraphs_list, questions_list, answers_list = zip(*[read_amazon_db(file_paths) for file_paths in file_paths_list])
+    vocab_set_list, paragraphs_list, questions_list, answers_list = read_amazon_db(db_auth)
+
+    print("paragraphs_list: ", len(paragraphs_list))
+    print("questions_list: ", len(questions_list))
+    print("answers_list: ", len(answers_list))
+
     vocab_set = vocab_set_list[0]
     vocab_map = dict((v, k+1) for k, v in enumerate(sorted(vocab_set))) # this is word -> index (i think) with '<UNK>' as index=0
     vocab_map["<UNK>"] = 0
@@ -149,35 +196,40 @@ def read_amazon_split(batch_size, train_file_path, test_file_path):
     ''' this is basically the final step in making the data sets '''
     # TODO word2vec or glove vectors here instead of just indices
     ## Makes the inputs to the networks (why u mke dis so complicated???? quadruple nested list comprehensions??? REALLY???)
+    # TODO need to make this split into a train and test set
     xs_list = [[[[_get(vocab_map, word) for word in sentence] for sentence in paragraph] for paragraph in paragraphs] for paragraphs in paragraphs_list]
     qs_list = [[[_get(vocab_map, word) for word in question] for question in questions] for questions in questions_list]
     ys_list = [[_get(vocab_map, answer) for answer in answers] for answers in answers_list]
 
-    data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)44
+    print "xs size: ", len(xs_list)
+    print "qs size: ", len(qs_list)
+    print "ys size: ", len(ys_list)
+
+    count_sets = 0
+    for i,(xs, qs, ys) in enumerate(zip(xs_list,qs_list,ys_list)):
+        count_sets += 1
+
+    print "count sets: ",count_sets
+
+    data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)
                  for xs, qs, ys in zip(xs_list, qs_list, ys_list)]
+
     # just for debugging
     for data_set in data_sets:
         data_set.vocab_map = vocab_map
         data_set.vocab_size = len(vocab_map)
     # return data_setst
-    pass
+    return data_sets
 
 
-# ''' reading in amazon data '''
-# def read_amazon(batch_size):
-#     # train_file_path = "" + file_name + "_train"
-#     # test_file_path = "" + file_name + "_train"
-#
-#     return read_amazon_split(batch_size, train_file_path, test_file_path)
-
-def split_val(data_set, ratio):
+def split_val_amazon(data_set, ratio):
     end_idx = int(data_set.num_examples * (1-ratio))
     left = DataSet(data_set.batch_size, list(range(end_idx)), data_set.xs[:end_idx], data_set.qs[:end_idx], data_set.ys[:end_idx])
     right = DataSet(data_set.batch_size, list(range(len(data_set.xs) - end_idx)), data_set.xs[end_idx:], data_set.qs[end_idx:], data_set.ys[end_idx:])
     return left, right
 
 
-def get_max_sizes(*data_sets):
+def get_max_sizes_amazon(*data_sets):
     max_sent_size = max(len(s) for ds in data_sets for idx in ds.idxs for s in ds.xs[idx])
     max_ques_size = max(len(ds.qs[idx]) for ds in data_sets for idx in ds.idxs)
     return max_sent_size, max_ques_size
@@ -190,4 +242,3 @@ if __name__ == "__main__":
     x_batch, q_batch, y_batch = train.get_next_labeled_batch()
     max_sent_size, max_ques_size = get_max_sizes(train, test)
     print(max_sent_size, max_ques_size)
-# print x_batch
