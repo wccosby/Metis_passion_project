@@ -131,14 +131,22 @@ def read_amazon_db(db_auth):
             question = _tokenize_question(document['question'])
             questions.append(question)
             # add question words into the vocab set
-            vocab_set |= set(question)
+            # print "adding answer: ", answer
             vocab_set.add(answer)
+            for q in question:
+                vocab_set.add(q)
+            # vocab_set |= set(question)
+            # vocab_set.add(answer)
 
+            # TODO not adding story words to vocab?
             # deal with the paragraph/story thing
             # paragraph is a list of lists
                 # [[words,in,sentence,1],[words,in,sentence,2],...,[words,in,sentence,n]]
             paragraph = _tokenize_story(document['facts'])
             paragraphs.append(paragraph)
+            for sentence in paragraph:
+                for word in sentence:
+                    vocab_set.add(word)
             # add to the vocab set inside the tokenize function?
             paragraph_list = []
             questions_list = []
@@ -153,6 +161,7 @@ def read_amazon_db(db_auth):
             answers_list.append(answers[:len(answers)/2])
             answers_list.append(answers[len(answers)/2:])
 
+    print "from data: ", len(vocab_set)
 
     return list(vocab_set), paragraph_list, questions_list, answers_list
 
@@ -179,13 +188,16 @@ def read_amazon_split(batch_size):
     # vocab_set_list, paragraphs_list, questions_list, answers_list = zip(*[read_amazon_db(file_paths) for file_paths in file_paths_list])
     vocab_set_list, paragraphs_list, questions_list, answers_list = read_amazon_db(db_auth)
 
-    print("paragraphs_list: ", len(paragraphs_list))
-    print("questions_list: ", len(questions_list))
-    print("answers_list: ", len(answers_list))
+    # print("paragraphs_list: ", len(paragraphs_list))
+    # print("questions_list: ", len(questions_list))
+    # print("answers_list: ", len(answers_list))
+    # print("vocab: ", len(vocab_set_list))
 
-    vocab_set = vocab_set_list[0]
-    vocab_map = dict((v, k+1) for k, v in enumerate(sorted(vocab_set))) # this is word -> index (i think) with '<UNK>' as index=0
+    # vocab_set = vocab_set_list[0]
+    vocab_map = dict((v, k+1) for k, v in enumerate(sorted(vocab_set_list))) # this is word -> index (i think) with '<UNK>' as index=0
     vocab_map["<UNK>"] = 0
+
+    print len(vocab_map)
 
     ''' get the index of the word, return index for <UNK> token if word is not in the vocabulary '''
     def _get(vm, w): # w = word, vm = vocabulary_map
@@ -201,15 +213,17 @@ def read_amazon_split(batch_size):
     qs_list = [[[_get(vocab_map, word) for word in question] for question in questions] for questions in questions_list]
     ys_list = [[_get(vocab_map, answer) for answer in answers] for answers in answers_list]
 
-    print "xs size: ", len(xs_list)
-    print "qs size: ", len(qs_list)
-    print "ys size: ", len(ys_list)
-
-    count_sets = 0
+    # print "xs size: ", len(xs_list)
+    # print "qs size: ", len(qs_list)
+    # print "ys size: ", len(ys_list)
+    # print ys_list
+    #
+    # count_sets = 0
     for i,(xs, qs, ys) in enumerate(zip(xs_list,qs_list,ys_list)):
-        count_sets += 1
+        if i % 100 == 0:
+            print ys
 
-    print "count sets: ",count_sets
+    # print "count sets: ",count_sets
 
     data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)
                  for xs, qs, ys in zip(xs_list, qs_list, ys_list)]
