@@ -118,6 +118,7 @@ import numpy as np
 class DataSet(object):
     def __init__(self, batch_size, idxs, xs, qs, ys, include_leftover=False, name=""):
         # assert len(xs) == len(qs) == len(ys), "X, Q, and Y sizes don't match."
+        print "batch size: ", batch_size
         assert batch_size <= len(xs), "batch size cannot be greater than data size."
         self.name = name or "dataset"
         self.idxs = idxs
@@ -140,6 +141,9 @@ class DataSet(object):
         cur_idxs = self.idxs[from_:to]
         xs, qs, ys = zip(*[[self.xs[i], self.qs[i], self.ys[i]] for i in cur_idxs])
         self.idx_in_epoch += self.batch_size
+        # print "xs: ", xs
+        # print "qs: ", qs
+        # print "ys: ",ys
         return xs, qs, ys
 
     def has_next_batch(self):
@@ -216,8 +220,11 @@ def read_babi_split(batch_size, *file_paths_list):
     # calls read_babi_files
     vocab_set_list, paragraphs_list, questions_list, answers_list = zip(*[read_babi_files(file_paths) for file_paths in file_paths_list])
     vocab_set = vocab_set_list[0]
+    print vocab_set
     vocab_map = dict((v, k+1) for k, v in enumerate(sorted(vocab_set))) # this is word -> index (i think) with '<UNK>' as index=0
     vocab_map["<UNK>"] = 0
+    print "vocab_size: ",len(vocab_map)
+
 
     ''' get the index of the word, return index for <UNK> token if word is not in the vocabulary '''
     def _get(vm, w): # w = word, vm = vocabulary_map
@@ -232,18 +239,20 @@ def read_babi_split(batch_size, *file_paths_list):
     qs_list = [[[_get(vocab_map, word) for word in question] for question in questions] for questions in questions_list]
     ys_list = [[_get(vocab_map, answer) for answer in answers] for answers in answers_list]
 
-    print "xs size: ", len(xs_list)
-    print "qs size: ", len(qs_list)
-    print "ys size: ", len(ys_list)
+    # print "xs size: ", len(xs_list)
+    # print "qs size: ", len(qs_list)
+    # print "ys size: ", len(ys_list)
 
-    for i,(xs, qs, ys) in enumerate(zip(xs_list,qs_list,ys_list)):
-        print "len xs: ",len(xs)
-        print "len qs: ",len(qs)
-        print "len ys: ",len(ys)
+    # for i,(xs, qs, ys) in enumerate(zip(xs_list,qs_list,ys_list)):
+        # print "len xs: ",len(xs)
+        # print "len qs: ",len(qs)
+        # print "len ys: ",len(ys)
+
+    # print ys
 
     data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)
                  for xs, qs, ys in zip(xs_list, qs_list, ys_list)]
-    print "datasets: ",len(data_sets)
+    # print "datasets: ",len(data_sets)
     # just for debugging
     for data_set in data_sets:
         data_set.vocab_map = vocab_map
@@ -280,7 +289,7 @@ def get_max_sizes(*data_sets):
 
 
 if __name__ == "__main__":
-    train, test = read_babi(32, "data/tasks_1-20_v1-2/en", 1)
+    train, test = read_babi(1, "data/tasks_1-20_v1-2/en", 1)
     # print train.vocab_size, train.max_m_len, train.max_s_len, train.max_q_len
     # print test.vocab_size, test.max_m_len, test.max_s_len, test.max_q_len
     x_batch, q_batch, y_batch = train.get_next_labeled_batch()

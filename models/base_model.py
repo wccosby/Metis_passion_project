@@ -23,6 +23,7 @@ class BaseModel(object):
             self.correct_vec = None
             self.total_loss = None
             self.merged_summary = None
+            self.predicted = None
             self._build_tower()
             self.saver = tf.train.Saver()
 
@@ -35,20 +36,33 @@ class BaseModel(object):
     def train_batch(self, sess, learning_rate, batch):
         feed_dict = self._get_feed_dict(batch)
         feed_dict[self.learning_rate] = learning_rate
+        # the things in the list specify the commands to run basically
+        ''' actually runs the graph '''
         return sess.run([self.opt_op, self.merged_summary, self.global_step], feed_dict=feed_dict)
 
     def test_batch(self, sess, batch):
         actual_batch_size = len(batch[0])
         feed_dict = self._get_feed_dict(batch)
-        correct_vec, total_loss, summary_str, global_step = \
-            sess.run([self.correct_vec, self.total_loss, self.merged_summary, self.global_step], feed_dict=feed_dict)
+
+
+        actual, predicted, correct_vec, total_loss, summary_str, global_step = \
+            sess.run([self.actual,self.predicted, self.correct_vec, self.total_loss, self.merged_summary, self.global_step], feed_dict=feed_dict)
+
+        ''' predicted gives the softmax probabilities for all words in the corpus as the answer '''
+        print "PREDICTED: ", predicted
+        print "ACTUAL: ", actual
+        # print "correct answer: ", self.correct_vec
+        # print "total loss: ", self.total_loss
+
+        # print sess.run(feed_dict=feed_dict)
+
         num_corrects = np.sum(correct_vec[:actual_batch_size])
 
         return num_corrects, total_loss, summary_str, global_step
 
     def train(self, sess, writer, train_data_set, val_data_set):
-        assert isinstance(train_data_set, DataSet)
-        assert isinstance(val_data_set, DataSet)
+        # assert isinstance(train_data_set, DataSet)
+        # assert isinstance(val_data_set, DataSet)
         params = self.params
         learning_rate = params.init_lr
         num_epochs = params.num_epochs
@@ -65,6 +79,7 @@ class BaseModel(object):
             pbar.start()
             for num_batches_completed in range(num_batches):
                 batch = train_data_set.get_next_labeled_batch()
+                ''' calls train_batch '''
                 _, summary_str, global_step = self.train_batch(sess, learning_rate, batch)
                 writer.add_summary(summary_str, global_step)
                 pbar.update(num_batches_completed)
@@ -81,6 +96,7 @@ class BaseModel(object):
 
     def eval(self, sess, eval_data_set, is_val=False):
         params = self.params
+        print "eval data_set: ", eval_data_set
         num_batches = params.val_num_batches if is_val else params.test_num_batches
         num_corrects, total = 0, 0
         string = "%s:N=%d|" % (eval_data_set.name, eval_data_set.batch_size * num_batches)

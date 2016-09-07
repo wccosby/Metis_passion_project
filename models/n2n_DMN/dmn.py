@@ -101,6 +101,7 @@ class MemoryLayer(object):
         masked_batch = exp_um_batch * m_mask_batch  # [N, M]
         sum_2d_batch = tf.expand_dims(tf.reduce_sum(masked_batch, 1), -1)  # [N, 1]
         p_batch = tf.div(masked_batch, sum_2d_batch, name='p')  # [N, M]
+        # print "p_batch: ", p_batch
         return p_batch
 
 
@@ -138,6 +139,7 @@ class n2nModel(BaseModel):
 
             # define the target (y_batch, shape=[N], int32)
             y_batch = tf.placeholder('int32', shape=[batch_size],name='y')
+            # print "y_batch: ",y_batch
 
             # define learning rate
             learning_rate = tf.placeholder('float',name='learning_rate')
@@ -150,8 +152,10 @@ class n2nModel(BaseModel):
 
         # define answer layer...its a neural network embedding_lookup, shape[V]
         with tf.name_scope('answer'):
+            ''' I think this compares the answer vector? '''
+            # TODO what do we do about this
             a_batch = tf.nn.embedding_lookup(tf.diag(tf.ones(shape=[vocab_size])),y_batch,name='answer') # [batch_size, hidden_size]
-
+            # print "a_batch: ", a_batch
         ## define what happens to the question embedding initially
         with tf.name_scope('first_u'):
             B = tf.get_variable('B',dtype='float',shape=[vocab_size, hidden_size])
@@ -200,6 +204,9 @@ class n2nModel(BaseModel):
                 raise Exception("Unsupported tying method: %s" % params.tying)
             logit_batch = tf.matmul(last_u_batch, W, name='logit')
             ap_batch = tf.nn.softmax(logit_batch, name='ap')
+            # print ap_batch.eval(self._get_feed_dict)
+            #TODO UGHAUJSDFJAWJEFAJWEFJWAJF FUUUUUUUUCCCCCKKKKKKKKK
+            # print "ap_batch: ", ap_batch.eval()
 
         """ Define loss for the networks """
         with tf.name_scope("loss") as loss_scope:
@@ -210,6 +217,8 @@ class n2nModel(BaseModel):
             losses = tf.get_collection('losses', loss_scope)
 
         with tf.name_scope('acc'):
+            predicted = tf.argmax(ap_batch,1)
+            actual = a_batch
             correct_vec = tf.equal(tf.argmax(ap_batch, 1), tf.argmax(a_batch, 1))
             num_corrects = tf.reduce_sum(tf.cast(correct_vec, 'float'), name='num_corrects')
             acc = tf.reduce_mean(tf.cast(correct_vec, 'float'), name='acc')
@@ -233,14 +242,17 @@ class n2nModel(BaseModel):
         # tensors
         self.total_loss = total_loss
         self.correct_vec = correct_vec
+        self.predicted = predicted
         self.num_corrects = num_corrects
         self.acc = acc
         self.opt_op = opt_op
+        self.actual = actual
 
         # summaries --> for tensorboard
         summaries.append(tf.scalar_summary("%s (raw)" % total_loss.op.name, total_loss))
         self.merged_summary = tf.merge_summary(summaries)
 
+    ''' for positional encoding '''
     def _get_l(self):
         J, d = self.params.max_sent_size, self.params.hidden_size
         def f(JJ, jj, dd, kk):
@@ -318,4 +330,5 @@ class n2nModel(BaseModel):
         return q_batch, q_mask_batch
 
     def _prepro_label_batch(self, label_batch):
+        # print "label_batch: ",label_batch
         return np.array(label_batch)

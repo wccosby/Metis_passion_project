@@ -121,7 +121,7 @@ def read_amazon_db(db_auth):
     count = 0 # TODO remove this, its just for testing to make things run faster
     for document in documents.find():
         count += 1
-        if count % 1000 == 0:
+        if count % 2000 == 0:
             break
         # just put the answer into the document
         if (type(document['facts']) == unicode):
@@ -161,7 +161,7 @@ def read_amazon_db(db_auth):
             answers_list.append(answers[:len(answers)/2])
             answers_list.append(answers[len(answers)/2:])
 
-    print "from data: ", len(vocab_set)
+    # print "from data: ", len(vocab_set)
 
     return list(vocab_set), paragraph_list, questions_list, answers_list
 
@@ -219,9 +219,9 @@ def read_amazon_split(batch_size):
     # print ys_list
     #
     # count_sets = 0
-    for i,(xs, qs, ys) in enumerate(zip(xs_list,qs_list,ys_list)):
-        if i % 100 == 0:
-            print ys
+    # for i,(xs, qs, ys) in enumerate(zip(xs_list,qs_list,ys_list)):
+    #     if i % 100 == 0:
+    #         print ys
 
     # print "count sets: ",count_sets
 
