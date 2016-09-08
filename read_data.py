@@ -220,10 +220,12 @@ def read_babi_split(batch_size, *file_paths_list):
     # calls read_babi_files
     vocab_set_list, paragraphs_list, questions_list, answers_list = zip(*[read_babi_files(file_paths) for file_paths in file_paths_list])
     vocab_set = vocab_set_list[0]
-    print vocab_set
+    idx_to_word = dict((k+1,v) for k, v in enumerate(sorted(vocab_set)))
+    idx_to_word[0] = "<UNK>"
     vocab_map = dict((v, k+1) for k, v in enumerate(sorted(vocab_set))) # this is word -> index (i think) with '<UNK>' as index=0
     vocab_map["<UNK>"] = 0
     print "vocab_size: ",len(vocab_map)
+    print idx_to_word
 
 
     ''' get the index of the word, return index for <UNK> token if word is not in the vocabulary '''
@@ -257,7 +259,7 @@ def read_babi_split(batch_size, *file_paths_list):
     for data_set in data_sets:
         data_set.vocab_map = vocab_map
         data_set.vocab_size = len(vocab_map)
-    return data_sets
+    return data_sets, idx_to_word
 
 
 ''' reading in babi data '''
@@ -271,7 +273,8 @@ def read_babi(batch_size, dir_path, task, suffix=""):
             train_file_paths.append(file_path)
         elif file_name.startswith(prefix) and file_name.endswith(suffix + "_test.txt"):
             test_file_paths.append(file_path)
-            ''' calls read_babi_split '''
+
+    ''' calls read_babi_split '''
     return read_babi_split(batch_size, train_file_paths, test_file_paths)
 
 

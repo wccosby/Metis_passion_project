@@ -58,7 +58,7 @@ def main(_):
     # create train and test data w/ batch_size and task #
     ''' Controls loading the data set and creating the training/testing formats '''
     if FLAGS.data_group == 'babi':
-        train_ds, test_ds = read_data.read_babi(1, FLAGS.data_dir, FLAGS.task)
+        (train_ds, test_ds), idx_to_word = read_data.read_babi(1, FLAGS.data_dir, FLAGS.task)
         train_ds, val_ds = read_data.split_val(train_ds, FLAGS.val_ratio)
         train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
     else:
@@ -90,7 +90,7 @@ def main(_):
         FLAGS.test_num_batches = 1
         FLAGS.save_period = 1
 
-    pprint(FLAGS.__flags)
+    # pprint(FLAGS.__flags)
 
     graph = tf.Graph()
     model = n2nModel(graph, FLAGS)
@@ -103,7 +103,7 @@ def main(_):
             model.train(sess, writer, train_ds, val_ds)
         else:
             model.load(sess)
-            model.eval(sess, test_ds)
+            model.eval(sess, test_ds, idx_to_word)
 
 
 if __name__ == "__main__":

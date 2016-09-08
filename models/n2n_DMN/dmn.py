@@ -217,8 +217,8 @@ class n2nModel(BaseModel):
             losses = tf.get_collection('losses', loss_scope)
 
         with tf.name_scope('acc'):
-            predicted = tf.argmax(ap_batch,1)
-            actual = a_batch
+            predicted = tf.argmax(ap_batch, 1)
+            actual = tf.argmax(a_batch, 1)
             correct_vec = tf.equal(tf.argmax(ap_batch, 1), tf.argmax(a_batch, 1))
             num_corrects = tf.reduce_sum(tf.cast(correct_vec, 'float'), name='num_corrects')
             acc = tf.reduce_mean(tf.cast(correct_vec, 'float'), name='acc')

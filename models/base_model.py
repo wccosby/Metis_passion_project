@@ -24,6 +24,7 @@ class BaseModel(object):
             self.total_loss = None
             self.merged_summary = None
             self.predicted = None
+            self.actual = None
             self._build_tower()
             self.saver = tf.train.Saver()
 
@@ -40,7 +41,7 @@ class BaseModel(object):
         ''' actually runs the graph '''
         return sess.run([self.opt_op, self.merged_summary, self.global_step], feed_dict=feed_dict)
 
-    def test_batch(self, sess, batch):
+    def test_batch(self, sess, batch, idx_to_word):
         actual_batch_size = len(batch[0])
         feed_dict = self._get_feed_dict(batch)
 
@@ -49,8 +50,8 @@ class BaseModel(object):
             sess.run([self.actual,self.predicted, self.correct_vec, self.total_loss, self.merged_summary, self.global_step], feed_dict=feed_dict)
 
         ''' predicted gives the softmax probabilities for all words in the corpus as the answer '''
-        print "PREDICTED: ", predicted
-        print "ACTUAL: ", actual
+        print "PREDICTED: ", predicted, ": ", idx_to_word[predicted[0]]
+        print "ACTUAL: ", actual, ": ", idx_to_word[actual[0]]
         # print "correct answer: ", self.correct_vec
         # print "total loss: ", self.total_loss
 
@@ -94,7 +95,7 @@ class BaseModel(object):
                 self.save(sess)
         print("training done.")
 
-    def eval(self, sess, eval_data_set, is_val=False):
+    def eval(self, sess, eval_data_set, vocab_map, is_val=False):
         params = self.params
         print "eval data_set: ", eval_data_set
         num_batches = params.val_num_batches if is_val else params.test_num_batches
@@ -105,7 +106,7 @@ class BaseModel(object):
         pbar.start()
         for num_batches_completed in range(num_batches):
             batch = eval_data_set.get_next_labeled_batch()
-            cur_num_corrects, cur_loss, _, global_step = self.test_batch(sess, batch)
+            cur_num_corrects, cur_loss, _, global_step = self.test_batch(sess, batch, vocab_map)
             num_corrects += cur_num_corrects
             total += len(batch[0])
             losses.append(cur_loss)
