@@ -20,7 +20,7 @@ flags.DEFINE_integer("batch_size", 1, "Batch size during training and testing [3
 flags.DEFINE_float("init_mean", 0, "Initial weight mean [0]")
 flags.DEFINE_float("init_std", 0.1, "Initial weight std [0.1]")
 flags.DEFINE_float("init_lr", 0.01, "Initial learning rate [0.01]")
-flags.DEFINE_integer("num_epochs", 100, "Total number of epochs for training [100]")
+flags.DEFINE_integer("num_epochs", 15, "Total number of epochs for training [100]")
 flags.DEFINE_float("anneal_ratio", 0.5, "Annealing ratio [0.5]")
 flags.DEFINE_integer("anneal_period", 25, "Number of epochs for every annealing [25]")
 
@@ -36,8 +36,8 @@ flags.DEFINE_integer("save_period", 15, "Save period [10]")
 flags.DEFINE_boolean("draft", False, "Draft? (quick build) [False]")
 
 # Specific training parameters
-flags.DEFINE_integer("memory_size", 50, "Memory size [50]")
-flags.DEFINE_integer("hidden_size", 10, "Embedding dimension [20]")
+flags.DEFINE_integer("memory_size", 100, "Memory size [50]")
+flags.DEFINE_integer("hidden_size", 30, "Embedding dimension [20]")
 flags.DEFINE_integer("num_layers", 3, "Number of memory layers (hops) [3]")
 flags.DEFINE_boolean("linear_start", False, "Start training with linear model? [False]")
 flags.DEFINE_float("ls_init_lr", 0.005, "Initial learning rate for linear start [0.005]")
@@ -100,7 +100,7 @@ def main(_):
             writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
             if FLAGS.load:
                 model.load(sess)
-            model.train(sess, writer, train_ds, val_ds)
+            model.train(sess, writer, train_ds, val_ds, idx_to_word)
         else:
             model.load(sess)
             model.eval(sess, test_ds, idx_to_word)
