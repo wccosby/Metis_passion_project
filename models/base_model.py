@@ -61,7 +61,7 @@ class BaseModel(object):
 
         return num_corrects, total_loss, summary_str, global_step
 
-    def train(self, sess, writer, train_data_set, val_data_set):
+    def train(self, sess, writer, train_data_set, val_data_set, idx_to_word):
         # assert isinstance(train_data_set, DataSet)
         # assert isinstance(val_data_set, DataSet)
         params = self.params
@@ -95,7 +95,7 @@ class BaseModel(object):
                 self.save(sess)
         print("training done.")
 
-    def eval(self, sess, eval_data_set, vocab_map, is_val=False):
+    def eval(self, sess, eval_data_set, idx_to_word, is_val=False):
         params = self.params
         print "eval data_set: ", eval_data_set
         num_batches = params.val_num_batches if is_val else params.test_num_batches
@@ -106,7 +106,7 @@ class BaseModel(object):
         pbar.start()
         for num_batches_completed in range(num_batches):
             batch = eval_data_set.get_next_labeled_batch()
-            cur_num_corrects, cur_loss, _, global_step = self.test_batch(sess, batch, vocab_map)
+            cur_num_corrects, cur_loss, _, global_step = self.test_batch(sess, batch, idx_to_word)
             num_corrects += cur_num_corrects
             total += len(batch[0])
             losses.append(cur_loss)
