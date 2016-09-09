@@ -38,6 +38,9 @@ class MemoryLayer(object):
                 add linear mapping (H) to update query vector (u) between hops --> u_(k+1) = H * u_k + o_k
                     this mapping is learnt along with the rest of the parameters
         """
+        #TODO here in the .get_variable functons pass in an "initializer=word_embedding_matrix"
+        #NOTE the TA, TB, TC matrices are for the temporal encoding (i dont need to initialize them in any way)
+
         if not prev_layer: # if this is the first layer then we need to define the A and C embedding matrices
             if params.tying == 'adj':
                 A = tf.identity(B, name='A')
@@ -189,7 +192,7 @@ class n2nModel(BaseModel):
         """ get the last question vector """
         with tf.variable_scope('last_u'):
             if params.tying == 'rnn':
-                H = tf.get_variable('H',dytpe='float', shape=[hidden_size, hidden_size])
+                H = tf.get_variable('H',shape=[hidden_size, hidden_size])
                 last_u_batch = tf.add(tf.matmul(current_layer.u_batch,H), current_layer.o_batch, name='last_u')
             else:
                 last_u_batch = tf.add(current_layer.u_batch, current_layer.o_batch, name='last_u')

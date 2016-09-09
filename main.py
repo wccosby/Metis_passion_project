@@ -46,7 +46,7 @@ flags.DEFINE_float("ls_init_lr", 0.005, "Initial learning rate for linear start 
 flags.DEFINE_integer("ls_num_epochs", 20, "Linear start duration [20]")
 flags.DEFINE_float("max_grad_norm", 40, "Max gradient norm; above this number is clipped [40]")
 flags.DEFINE_boolean("position_encoding", True, "Position encoding enabled? 'True' or 'False' [True]")
-flags.DEFINE_string("tying", 'adj', "Indicate tying method: 'adj' or 'rnn' [adj]")
+flags.DEFINE_string("tying", 'rnn', "Indicate tying method: 'adj' or 'rnn' [adj]")
 
 # Specific options
 flags.DEFINE_string("data_group",'cust',"Running model on: 'babi' or 'amazon' [babi]")
