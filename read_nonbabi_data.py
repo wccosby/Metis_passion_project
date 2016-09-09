@@ -150,16 +150,16 @@ def read_babi_split(batch_size, *file_paths_list):
 
 ''' reading in babi data '''
 def read_babi(batch_size, dir_path, task, suffix=""):
-    # prefix = "qa%s_" % str(task)
+    prefix = "%s" % str(task)
     train_file_paths = []
     test_file_paths = []
     for file_name in os.listdir(dir_path):
         file_path = os.path.join(dir_path, file_name)
-        # if file_name.startswith(prefix) and file_name.endswith(suffix + "_train.txt"):
-        if file_name.endswith(suffix + "_train.txt"):
+        if file_name.startswith(prefix) and file_name.endswith(suffix + "_train.txt"):
+        # if file_name.endswith(suffix + "_train.txt"):
             train_file_paths.append(file_path)
-        # elif file_name.startswith(prefix) and file_name.endswith(suffix + "_test.txt"):
-        elif file_name.endswith(suffix + "_test.txt"):
+        elif file_name.startswith(prefix) and file_name.endswith(suffix + "_test.txt"):
+        # elif file_name.endswith(suffix + "_test.txt"):
             test_file_paths.append(file_path)
 
     ''' calls read_babi_split '''

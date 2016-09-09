@@ -22,7 +22,7 @@ flags.DEFINE_integer("batch_size", 1, "Batch size during training and testing [3
 flags.DEFINE_float("init_mean", 0, "Initial weight mean [0]")
 flags.DEFINE_float("init_std", 0.1, "Initial weight std [0.1]")
 flags.DEFINE_float("init_lr", 0.01, "Initial learning rate [0.01]")
-flags.DEFINE_integer("num_epochs", 15, "Total number of epochs for training [100]")
+flags.DEFINE_integer("num_epochs", 25, "Total number of epochs for training [100]")
 flags.DEFINE_float("anneal_ratio", 0.5, "Annealing ratio [0.5]")
 flags.DEFINE_integer("anneal_period", 25, "Number of epochs for every annealing [25]")
 
@@ -39,8 +39,8 @@ flags.DEFINE_boolean("draft", False, "Draft? (quick build) [False]")
 
 # Specific training parameters
 flags.DEFINE_integer("memory_size", 100, "Memory size [50]")
-flags.DEFINE_integer("hidden_size", 30, "Embedding dimension [20]")
-flags.DEFINE_integer("num_layers", 3, "Number of memory layers (hops) [3]")
+flags.DEFINE_integer("hidden_size", 60, "Embedding dimension [20]")
+flags.DEFINE_integer("num_layers", 5, "Number of memory layers (hops) [3]")
 flags.DEFINE_boolean("linear_start", False, "Start training with linear model? [False]")
 flags.DEFINE_float("ls_init_lr", 0.005, "Initial learning rate for linear start [0.005]")
 flags.DEFINE_integer("ls_num_epochs", 20, "Linear start duration [20]")
@@ -50,7 +50,7 @@ flags.DEFINE_string("tying", 'adj', "Indicate tying method: 'adj' or 'rnn' [adj]
 
 # Specific options
 flags.DEFINE_string("data_group",'cust',"Running model on: 'babi' or 'amazon' [babi]")
-flags.DEFINE_integer("task", 1, "Task number [1]")
+flags.DEFINE_string("task", 1, "Task number [1]")
 flags.DEFINE_float("val_ratio", 0.1, "Validation data ratio to training data [0.1]")
 
 FLAGS = flags.FLAGS
