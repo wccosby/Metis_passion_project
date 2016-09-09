@@ -1,114 +1,3 @@
-# # a neat code from https://github.com/YerevaNN/Dynamic-memory-networks-in-Theano/
-# import os
-#
-# from utils.data_utils import DataSet
-# from copy import deepcopy
-#
-#
-# def load_babi(data_dir, task_id, type='train'):
-#     """ Load bAbi Dataset.
-#     :param data_dir
-#     :param task_id: bAbI Task ID
-#     :param type: "train" or "test"
-#     :return: dict
-#     """
-#     files = os.listdir(data_dir)
-#     files = [os.path.join(data_dir, f) for f in files]
-#     s = 'qa{}_'.format(task_id)
-#     file_name = [f for f in files if s in f and type in f][0]
-#
-#     # Parsing
-#     tasks = []
-#     skip = False
-#     curr_task = None
-#     for i, line in enumerate(open(file_name)):
-#         id = int(line[0:line.find(' ')])
-#         if id == 1:
-#             skip = False
-#             curr_task = {"C": [], "Q": "", "A": ""}
-#
-#         # Filter tasks that are too large
-#         if skip: continue
-#         if task_id == 3 and id > 130:
-#             skip = True
-#             continue
-#
-#         elif task_id != 3 and id > 70:
-#             skip = True
-#             continue
-#
-#         line = line.strip()
-#         line = line.replace('.', ' . ')
-#         line = line[line.find(' ') + 1:]
-#         if line.find('?') == -1:
-#             curr_task["C"].append(line)
-#         else:
-#             idx = line.find('?')
-#             tmp = line[idx + 1:].split('\t')
-#             curr_task["Q"] = line[:idx]
-#             curr_task["A"] = tmp[1].strip()
-#             tasks.append(deepcopy(curr_task))
-#
-#     print("Loaded {} data from bAbI {} task {}".format(len(tasks), type, task_id))
-#     return tasks
-#
-#
-# def process_babi(raw, word_table):
-#     """ Tokenizes sentences.
-#     :param raw: dict returned from load_babi
-#     :param word_table: WordTable
-#     :return:
-#     """
-#     questions = []
-#     inputs = []
-#     answers = []
-#     fact_counts = []
-#
-#     for x in raw:
-#         inp = []
-#         for fact in x["C"]:
-#             sent = [w for w in fact.lower().split(' ') if len(w) > 0]
-#             inp.append(sent)
-#             word_table.add_vocab(*sent)
-#
-#         q = [w for w in x["Q"].lower().split(' ') if len(w) > 0]
-#
-#         word_table.add_vocab(*q, x["A"])
-#
-#         inputs.append(inp)
-#         questions.append(q)
-#         answers.append(x["A"])  # NOTE: here we assume the answer is one word!
-#         fact_counts.append(len(inp))
-#
-#     return inputs, questions, answers, fact_counts
-#
-#
-# def read_babi(data_dir, task_id, type, batch_size, word_table):
-#     """ Reads bAbi data set.
-#     :param data_dir: bAbi data directory
-#     :param task_id: task no. (int)
-#     :param type: 'train' or 'test'
-#     :param batch_size: how many examples in a minibatch?
-#     :param word_table: WordTable
-#     :return: DataSet
-#     """
-#     data = load_babi(data_dir, task_id, type)
-#     x, q, y, fc = process_babi(data, word_table)
-#     return DataSet(batch_size, x, q, y, fc, name=type)
-#
-#
-# def get_max_sizes(*data_sets):
-#     max_sent_size = max_ques_size = max_fact_count = 0
-#     for data in data_sets:
-#         for x, q, fc in zip(data.xs, data.qs, data.fact_counts):
-#             for fact in x: max_sent_size = max(max_sent_size, len(fact))
-#             max_ques_size = max(max_ques_size, len(q))
-#             max_fact_count = max(max_fact_count, fc)
-#
-# return max_sent_size, max_ques_size, max_fact_count
-
-
-
 import os
 import re
 import logging
@@ -164,8 +53,10 @@ def _tokenize(raw):
     return normalized_tokens
 
 
-_s_re = re.compile("^(\\d+) ([\\w\\s.]+)")
-_q_re = re.compile("^(\\d+) ([\\w\\s\\?]+)\t([\\w,]+)\t(\\d+)")
+
+_s_re = re.compile("^F:")
+_q_re = re.compile("Q:")
+_a_re = re.compile("A:")
 
 
 '''
@@ -178,40 +69,43 @@ def read_babi_files(file_paths):
     paragraphs = []
     questions = []
     answers = []
-
     for file_path in file_paths:
         with open(file_path, 'r') as fh:
             lines = fh.readlines()
             paragraph = []
             for line_num, line in enumerate(lines):
+                line = line.strip('\n')
                 sm = _s_re.match(line) # matches pattern of a sentence
                 qm = _q_re.match(line) # matches pattern of a question
+                am = _a_re.match(line)
 
-                # if it is a question
+                # if it is a question, peel off the 'Q: ' beginning part
                 if qm:
-                    id_, raw_question, answer, support = qm.groups()
+                    raw_question = line[2:].strip() # should start from the space after Q:
                     question = _tokenize(raw_question)
-                    paragraphs.append(paragraph[:])
                     questions.append(question)
-                    answers.append(answer)
                     vocab_set |= set(question)
-                    vocab_set.add(answer)
+                    # now that we've hit a question we know we're at the end of the "story"
+                    # add the paragraph so far to the paragraphs list
+                    paragraphs.append(paragraph)
+                    paragraph = [] # clear the paragraph to start adding new things to it on the next time we hit a sentence
 
-                # if it is a sentence in the paragraph/story
+                # if it is a sentence/part of the paragraph, peel off the 'A: ' part
                 elif sm:
-                    id_, raw_sentence = sm.groups()
-                    sentence = _tokenize(raw_sentence) # tokenize the sentence
-                    if id_ == '1':
-                        paragraph = []
+                    raw_sentence = line[2:].strip()
+                    sentence = _tokenize(raw_sentence)
                     paragraph.append(sentence)
                     vocab_set |= set(sentence)
+                # line represents an answer
+                elif am:
+                    answer = line[2:].strip()
+                    answers.append(answer)
+                    vocab_set.add(answer)
                 else:
                     logging.error("Invalid line encountered: line %d in %s" % (line_num + 1, file_path))
+
             print("Loaded %d examples from: %s" % (len(paragraphs), os.path.basename(file_path)))
-            if (os.path.basename(file_path) == 'qa1_single-supporting-fact_test.txt'):
-                print "paragraphs: ",paragraphs
-                print "questions: ", questions
-                print "answers: ", answers
+
     return vocab_set, paragraphs, questions, answers
 
 
@@ -238,21 +132,11 @@ def read_babi_split(batch_size, *file_paths_list):
 
     ''' this is basically the final step in making the data sets '''
     # TODO word2vec or glove vectors here instead of just indices
-    ## Makes the inputs to the networks (why u mke dis so complicated???? quadruple nested list comprehensions??? REALLY???)
+    ## Makes the inputs to the networks
     xs_list = [[[[_get(vocab_map, word) for word in sentence] for sentence in paragraph] for paragraph in paragraphs] for paragraphs in paragraphs_list]
     qs_list = [[[_get(vocab_map, word) for word in question] for question in questions] for questions in questions_list]
     ys_list = [[_get(vocab_map, answer) for answer in answers] for answers in answers_list]
 
-    # print "xs size: ", len(xs_list)
-    # print "qs size: ", len(qs_list)
-    # print "ys size: ", len(ys_list)
-
-    # for i,(xs, qs, ys) in enumerate(zip(xs_list,qs_list,ys_list)):
-        # print "len xs: ",len(xs)
-        # print "len qs: ",len(qs)
-        # print "len ys: ",len(ys)
-
-    # print ys
 
     data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)
                  for xs, qs, ys in zip(xs_list, qs_list, ys_list)]
@@ -266,14 +150,16 @@ def read_babi_split(batch_size, *file_paths_list):
 
 ''' reading in babi data '''
 def read_babi(batch_size, dir_path, task, suffix=""):
-    prefix = "qa%s_" % str(task)
+    # prefix = "qa%s_" % str(task)
     train_file_paths = []
     test_file_paths = []
     for file_name in os.listdir(dir_path):
         file_path = os.path.join(dir_path, file_name)
-        if file_name.startswith(prefix) and file_name.endswith(suffix + "_train.txt"):
+        # if file_name.startswith(prefix) and file_name.endswith(suffix + "_train.txt"):
+        if file_name.endswith(suffix + "_train.txt"):
             train_file_paths.append(file_path)
-        elif file_name.startswith(prefix) and file_name.endswith(suffix + "_test.txt"):
+        # elif file_name.startswith(prefix) and file_name.endswith(suffix + "_test.txt"):
+        elif file_name.endswith(suffix + "_test.txt"):
             test_file_paths.append(file_path)
 
     ''' calls read_babi_split '''

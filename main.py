@@ -5,6 +5,7 @@ import tensorflow as tf
 
 import read_data
 import read_data_amazon
+import read_nonbabi_data
 from models.n2n_DMN.dmn import n2nModel
 
 flags = tf.app.flags
@@ -13,6 +14,7 @@ flags = tf.app.flags
 flags.DEFINE_string("log_dir", "log", "Log directory [log]")
 flags.DEFINE_string("data_dir", 'data/babi/en/', "Data folder directory [data/babi/en]")
 flags.DEFINE_string("amazon_data_dir", 'data/amazon/', "Amazon data folder [data/amazon/]")
+flags.DEFINE_string("cust_data_dir", 'data/custom/','Custom data folder [data/custom]')
 flags.DEFINE_string("save_dir", "save", "Save path [save]")
 
 # Common training parameters
@@ -47,7 +49,7 @@ flags.DEFINE_boolean("position_encoding", True, "Position encoding enabled? 'Tru
 flags.DEFINE_string("tying", 'adj', "Indicate tying method: 'adj' or 'rnn' [adj]")
 
 # Specific options
-flags.DEFINE_string("data_group",'babi',"Running model on: 'babi' or 'amazon' [babi]")
+flags.DEFINE_string("data_group",'cust',"Running model on: 'babi' or 'amazon' [babi]")
 flags.DEFINE_integer("task", 1, "Task number [1]")
 flags.DEFINE_float("val_ratio", 0.1, "Validation data ratio to training data [0.1]")
 
@@ -57,7 +59,11 @@ FLAGS = flags.FLAGS
 def main(_):
     # create train and test data w/ batch_size and task #
     ''' Controls loading the data set and creating the training/testing formats '''
-    if FLAGS.data_group == 'babi':
+    if FLAGS.data_group == 'cust':
+        (train_ds, test_ds), idx_to_word = read_nonbabi_data.read_babi(1, FLAGS.cust_data_dir, FLAGS.task)
+        train_ds, val_ds = read_nonbabi_data.split_val(train_ds, FLAGS.val_ratio)
+        train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
+    elif FLAGS.data_group == 'babi':
         (train_ds, test_ds), idx_to_word = read_data.read_babi(1, FLAGS.data_dir, FLAGS.task)
         train_ds, val_ds = read_data.split_val(train_ds, FLAGS.val_ratio)
         train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
@@ -68,7 +74,7 @@ def main(_):
 
     FLAGS.vocab_size = test_ds.vocab_size # get the size of the vocabulary
     ##TODO check if get_max_sizes needs to be adjusted to make this all work correctly
-    FLAGS.max_sent_size, FLAGS.max_ques_size = read_data.get_max_sizes(train_ds, val_ds, test_ds)
+    FLAGS.max_sent_size, FLAGS.max_ques_size = read_nonbabi_data.get_max_sizes(train_ds, val_ds, test_ds)
     # FIXME : adhoc for now!``
     FLAGS.max_sent_size = max(FLAGS.max_sent_size, FLAGS.max_ques_size)
     FLAGS.train_num_batches = train_ds.num_batches
