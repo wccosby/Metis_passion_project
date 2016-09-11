@@ -70,6 +70,7 @@ class MemoryLayer(object):
             u_batch = tf.add(prev_layer.u_batch, prev_layer.o_batch, name='u')
 
         with tf.name_scope('m'):
+            # TODO adjust the embeddings here for pretrained word vectors
             Ax_batch = tf.nn.embedding_lookup(A, x_batch)  # [N, M, J, d]
             if params.position_encoding:
                 Ax_batch *= l_aug_aug  # position encoding
@@ -78,6 +79,7 @@ class MemoryLayer(object):
             m_batch = tf.add(tf.expand_dims(TA, 0), m_batch, name='m')  # temporal encoding
 
         with tf.name_scope('c'):
+            # TODO adjust embeddings here too for pretrained word vectors
             Cx_batch = tf.nn.embedding_lookup(C, x_batch)  # [N, M, J, d]
             if params.position_encoding:
                 Cx_batch *= l_aug_aug  # position encoding

@@ -2,6 +2,8 @@ from pprint import pprint
 import os
 
 import tensorflow as tf
+# import tensorflow_copy as tf
+
 
 import read_data
 import read_data_amazon
