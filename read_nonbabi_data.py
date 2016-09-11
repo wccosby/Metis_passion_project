@@ -3,6 +3,7 @@ import re
 import logging
 from pprint import pprint
 import numpy as np
+from collections import defaultdict
 
 class DataSet(object):
     def __init__(self, batch_size, idxs, xs, qs, ys, include_leftover=False, name=""):
@@ -55,8 +56,8 @@ def _tokenize(raw):
 
 
 _s_re = re.compile("^F:")
-_q_re = re.compile("Q:")
-_a_re = re.compile("A:")
+_q_re = re.compile("^Q:")
+_a_re = re.compile("^A:")
 
 
 '''
@@ -110,7 +111,7 @@ def read_babi_files(file_paths):
 
 
 ''' called in return statement of read_babi '''
-def read_babi_split(batch_size, *file_paths_list):
+def read_babi_split(batch_size, w2v_dictionary, *file_paths_list):
     # calls read_babi_files
     vocab_set_list, paragraphs_list, questions_list, answers_list = zip(*[read_babi_files(file_paths) for file_paths in file_paths_list])
     vocab_set = vocab_set_list[0]
@@ -120,23 +121,26 @@ def read_babi_split(batch_size, *file_paths_list):
     # word as key and index as value
     vocab_map = dict((v, k+1) for k, v in enumerate(sorted(vocab_set))) # this is word -> index (i think) with '<UNK>' as index=0
     vocab_map["<UNK>"] = 0
-    print "vocab_size: ",len(vocab_map)
-    print idx_to_word
+    # print "vocab_size: ",len(vocab_map)
+    # print idx_to_word
 
 
     ''' get the index of the word, return index for <UNK> token if word is not in the vocabulary '''
-    def _get(vm, w): # w = word, vm = vocabulary_map
-        if w in vm:
-            return vm[w]
-        return 0
+    #TODO add the word vector look ups right here...return the vector instead of the index
+    def _get(vm, w2v_dictionary, w): # w = word, vm = vocabulary_map
+        if w in w2v_dictionary.keys():
+            return w2v_dictionary[w]
+        return w2v_dictionary['<UNK>']
 
     ''' this is basically the final step in making the data sets '''
     # TODO word2vec or glove vectors here instead of just indices
     ## Makes the inputs to the networks
-    xs_list = [[[[_get(vocab_map, word) for word in sentence] for sentence in paragraph] for paragraph in paragraphs] for paragraphs in paragraphs_list]
-    qs_list = [[[_get(vocab_map, word) for word in question] for question in questions] for questions in questions_list]
-    ys_list = [[_get(vocab_map, answer) for answer in answers] for answers in answers_list]
+    xs_list = [[[[_get(vocab_map, w2v_dictionary, word) for word in sentence] for sentence in paragraph] for paragraph in paragraphs] for paragraphs in paragraphs_list]
+    qs_list = [[[_get(vocab_map, w2v_dictionary, word) for word in question] for question in questions] for questions in questions_list]
+    ys_list = [[_get(vocab_map, w2v_dictionary, answer) for answer in answers] for answers in answers_list]
 
+    # data sets are now a list of word vectors for the sentences instead of list
+    # of indices
 
     data_sets = [DataSet(batch_size, list(range(len(xs))), xs, qs, ys)
                  for xs, qs, ys in zip(xs_list, qs_list, ys_list)]
@@ -162,8 +166,22 @@ def read_babi(batch_size, dir_path, task, suffix=""):
         # elif file_name.endswith(suffix + "_test.txt"):
             test_file_paths.append(file_path)
 
+    # create the w2v dictionary
+    with open('/Users/williamcosby/Documents/metis/Passion_Project_Stratus/data/glove/glove.6B/glove.6B.50d.txt', 'r') as f:
+        content = f.readlines()
+    # content is a list of the word vectors, so need to split each line and get the word
+    w2v_dict = defaultdict(list)
+    # initialize an unkown word at 0s for the size of the embedding dim
+    w2v_dict['<UNK>'] = [0 for i in range(50)]
+    for vec in content:
+        split_vec = vec.split()
+        num_list = []
+        for num in split_vec[1:]:
+            num_list.append(float(num))
+        w2v_dict[split_vec[0]] = num_list
+
     ''' calls read_babi_split '''
-    return read_babi_split(batch_size, train_file_paths, test_file_paths)
+    return read_babi_split(batch_size, w2v_dict, train_file_paths, test_file_paths)
 
 
 def split_val(data_set, ratio):
