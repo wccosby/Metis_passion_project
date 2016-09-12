@@ -40,8 +40,8 @@ flags.DEFINE_integer("save_period", 15, "Save period [10]")
 flags.DEFINE_boolean("draft", False, "Draft? (quick build) [False]")
 
 # Specific training parameters
-flags.DEFINE_integer("memory_size", 100, "Memory size [50]")
-flags.DEFINE_integer("hidden_size", 60, "Embedding dimension [20]")
+flags.DEFINE_integer("memory_size", 50, "Memory size [50]")
+flags.DEFINE_integer("hidden_size", 50, "Embedding dimension [20]")
 flags.DEFINE_integer("num_layers", 5, "Number of memory layers (hops) [3]")
 flags.DEFINE_boolean("linear_start", False, "Start training with linear model? [False]")
 flags.DEFINE_float("ls_init_lr", 0.005, "Initial learning rate for linear start [0.005]")
@@ -62,7 +62,7 @@ def main(_):
     # create train and test data w/ batch_size and task #
     ''' Controls loading the data set and creating the training/testing formats '''
     if FLAGS.data_group == 'cust':
-        (train_ds, test_ds), idx_to_word = read_nonbabi_data.read_babi(1, FLAGS.cust_data_dir, FLAGS.task)
+        (train_ds, test_ds), idx_to_word, w2v_vectors = read_nonbabi_data.read_babi(1, FLAGS.cust_data_dir, FLAGS.task)
         train_ds, val_ds = read_nonbabi_data.split_val(train_ds, FLAGS.val_ratio)
         train_ds.name, val_ds.name, test_ds.name = 'train', 'val', 'test'
     elif FLAGS.data_group == 'babi':
@@ -102,16 +102,22 @@ def main(_):
 
     graph = tf.Graph()
     model = n2nModel(graph, FLAGS)
+    print("POST MODEL INIT")
     with tf.Session(graph=graph) as sess:
+        print("just before initializing all variables")
         sess.run(tf.initialize_all_variables())
+        print("initialized the variables")
         if FLAGS.train:
+            print("before writer")
             writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
+            print("after writer")
             if FLAGS.load:
                 model.load(sess)
-            model.train(sess, writer, train_ds, val_ds, idx_to_word)
+            print("training models")
+            model.train(sess, writer, train_ds, val_ds, idx_to_word, w2v_vectors)
         else:
             model.load(sess)
-            model.eval(sess, test_ds, idx_to_word)
+            model.eval(sess, test_ds, idx_to_word, w2v_vectors)
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ class MemoryLayer(object):
 
         linear_start = params.linear_start # controls if softmaxes are removed initially vs having softmaxes from the beginning
 
-        x_batch, x_mask_aug_batch, m_mask_batch = phs.x_batch, phs.x_mask_aug_batch, phs.m_mask_batch
+        x_batch, x_mask_aug_batch, m_mask_batch, w2v_b = phs.x_batch, phs.x_mask_aug_batch, phs.m_mask_batch, phs.w2v_b
         l_aug_aug = constants.l_aug_aug # positional encoding of input
 
         B, first_u_batch = tensors.B, tensors.first_u_batch # B is query embedding matrix, first_u_batch is first query
@@ -38,39 +38,42 @@ class MemoryLayer(object):
                 add linear mapping (H) to update query vector (u) between hops --> u_(k+1) = H * u_k + o_k
                     this mapping is learnt along with the rest of the parameters
         """
+        # print("TYPE OF W2V: ", type(w2v_b))
+        # print("W2V SHAPE~~~~~: ",w2v_b.get_shape())
         #TODO here in the .get_variable functons pass in an "initializer=word_embedding_matrix"
         #NOTE the TA, TB, TC matrices are for the temporal encoding (i dont need to initialize them in any way)
+        with tf.name_scope('embeddings'):
+            if not prev_layer: # if this is the first layer then we need to define the A and C embedding matrices
+                if params.tying == 'adj':
+                    A = tf.identity(B, name='A')
+                else:
+                    A = tf.get_variable('A', dtype='float',initializer=w2v_b)
 
-        if not prev_layer: # if this is the first layer then we need to define the A and C embedding matrices
-            if params.tying == 'adj':
-                A = tf.identity(B, name='A')
-            else:
-                A = tf.get_variable('A',dtype='float', shape=[vocab_size,hidden_size])
-
-            TA = tf.get_variable('TA',dtype='float',shape=[memory_size,hidden_size])
-            C = tf.get_variable('C', dtype='float', shape=[vocab_size, hidden_size])
-            TC = tf.get_variable('TC', dtype='float', shape=[memory_size, hidden_size])
-        else:
-            if params.tying == 'adj':
-                A = tf.identity(prev_layer.C, name='A')
-                TA = tf.identity(prev_layer.TC, name='TA')
-                C = tf.get_variable('C', dtype='float', shape=[vocab_size, hidden_size])
+                TA = tf.get_variable('TA',dtype='float',shape=[memory_size,hidden_size])
+                C = tf.get_variable('C', dtype='float', shape=[vocab_size,hidden_size])
                 TC = tf.get_variable('TC', dtype='float', shape=[memory_size, hidden_size])
-            elif params.tying == 'rnn':
-                A = tf.identity(prev_layer.A, name='A')
-                TA = tf.identity(prev_layer.TA, name='TA')
-                C = tf.identity(prev_layer.C, name='C')
-                TC = tf.identity(prev_layer.TC, name='TC')
             else:
-                raise Exception('Unknown tying method: %s' % params.tying)
+                if params.tying == 'adj':
+                    A = tf.identity(prev_layer.C, name='A')
+                    TA = tf.identity(prev_layer.TC, name='TA')
+                    C = tf.get_variable('C', dtype='float', shape=[vocab_size, hidden_size])
+                    TC = tf.get_variable('TC', dtype='float', shape=[memory_size, hidden_size])
+                elif params.tying == 'rnn':
+                    A = tf.identity(prev_layer.A, name='A')
+                    TA = tf.identity(prev_layer.TA, name='TA')
+                    C = tf.identity(prev_layer.C, name='C')
+                    TC = tf.identity(prev_layer.TC, name='TC')
+                else:
+                    raise Exception('Unknown tying method: %s' % params.tying)
 
-        if not prev_layer:
-            u_batch = tf.identity(tensors.first_u_batch, name='u')
-        else:
-            u_batch = tf.add(prev_layer.u_batch, prev_layer.o_batch, name='u')
+            if not prev_layer:
+                u_batch = tf.identity(tensors.first_u_batch, name='u')
+            else:
+                u_batch = tf.add(prev_layer.u_batch, prev_layer.o_batch, name='u')
 
         with tf.name_scope('m'):
-            # TODO adjust the embeddings here for pretrained word vectors
+            # TODO adjust the embeddings here for pretrained word vectors --> will just be raw input, no A or C matrices
+            # NOTE using word vectors that arent adjusted x_batch is the main input for Ax_batch (no lookup)
             Ax_batch = tf.nn.embedding_lookup(A, x_batch)  # [N, M, J, d]
             if params.position_encoding:
                 Ax_batch *= l_aug_aug  # position encoding
@@ -145,6 +148,9 @@ class n2nModel(BaseModel):
             # define the target (y_batch, shape=[N], int32)
             y_batch = tf.placeholder('int32', shape=[batch_size],name='y')
             # print "y_batch: ",y_batch
+            print("GOT TO JUST BEFORE W2V PLACEHOLDER IS DECALRED")
+            # define word vector matrix placeholder
+            w2v_b = tf.placeholder('float',shape=[vocab_size,hidden_size], name='w2v')
 
             # define learning rate
             learning_rate = tf.placeholder('float',name='learning_rate')
@@ -163,7 +169,7 @@ class n2nModel(BaseModel):
             # print "a_batch: ", a_batch
         ## define what happens to the question embedding initially
         with tf.name_scope('first_u'):
-            B = tf.get_variable('B',dtype='float',shape=[vocab_size, hidden_size])
+            B = tf.get_variable('B',dtype='float',shape=[vocab_size,hidden_size])
             ## embedding_lookup --> looks up ids in a list of embedding tensors
             # here B is interpreted as a partition of of a larger embedding tensor (which is B)
             # q_batch here contains the ids to be looked up in B
@@ -178,9 +184,19 @@ class n2nModel(BaseModel):
             first_u_batch = tf.reduce_sum(Bq_batch,1,name='first_u') # [batch_size, hidden_size]
 
         placeholders, constants, tensors = Container(), Container(), Container()
-        placeholders.x_batch, placeholders.x_mask_batch, placeholders.x_mask_aug_batch, placeholders.m_mask_batch = x_batch, x_mask_batch, x_mask_aug_batch, m_mask_batch
+        placeholders.x_batch, placeholders.x_mask_batch, placeholders.x_mask_aug_batch, placeholders.m_mask_batch, placeholders.w2v_b = x_batch, x_mask_batch, x_mask_aug_batch, m_mask_batch, w2v_b
         constants.l_aug_aug = l_aug_aug
         tensors.B, tensors.first_u_batch = B, first_u_batch
+
+        # placeholders
+        self.x = x_batch
+        self.x_mask = x_mask_batch
+        self.m_mask = m_mask_batch
+        self.q = q_batch
+        self.q_mask = q_mask_batch
+        self.y = y_batch
+        self.learning_rate = learning_rate
+        self.w2v = w2v_b
 
         memory_layers = []
         current_layer = None
@@ -235,15 +251,7 @@ class n2nModel(BaseModel):
             clipped_grads_and_vars = [(tf.clip_by_norm(grad, params.max_grad_norm), var) for grad, var in grads_and_vars]
             opt_op = opt.apply_gradients(clipped_grads_and_vars, global_step=self.global_step)
 
-        # placeholders
-        self.x = x_batch
-        self.x_mask = x_mask_batch
-        self.m_mask = m_mask_batch
-        self.q = q_batch
-        self.q_mask = q_mask_batch
-        self.y = y_batch
-        self.learning_rate = learning_rate
-
+        # print("ITS NOT FUCKED HERE!!!")
         # tensors
         self.total_loss = total_loss
         self.correct_vec = correct_vec
@@ -256,7 +264,6 @@ class n2nModel(BaseModel):
         # summaries --> for tensorboard
         summaries.append(tf.scalar_summary("%s (raw)" % total_loss.op.name, total_loss))
         self.merged_summary = tf.merge_summary(summaries)
-
     ''' for positional encoding '''
     def _get_l(self):
         J, d = self.params.max_sent_size, self.params.hidden_size
@@ -277,18 +284,30 @@ class n2nModel(BaseModel):
 
     """
     loads the placeholders with data
+    note that this is overriding and valled from base_model
     """
-    def _get_feed_dict(self,batch):
+    def _get_feed_dict(self,batch, w2v):
+        print("GET FEED DICT TOTALLY JUST GOT CALLED MOFO")
+        print(len(w2v))
         sent_batch, ques_batch = batch[:2]
         if len(batch) > 2:
             label_batch = batch[2]
         else:
             label_batch = np.zeros([len(sent_batch)])
+        print("about to assign w2v")
+        w2v_b = w2v
+        print("after assigning w2v")
+        # print "XBATCH: ", x_batch[:5]
+        # print "WORD@VECASDFASFWEA: ", len(w2v)
         x_batch, x_mask_batch, m_mask_batch = self._prepro_sent_batch(sent_batch)
+        print("processed x_batch")
         q_batch, q_mask_batch = self._prepro_ques_batch(ques_batch)
+        print("processed q_batch")
         y_batch = self._prepro_label_batch(label_batch)
+        print("processed y_batch")
         feed_dict = {self.x: x_batch, self.x_mask: x_mask_batch, self.m_mask: m_mask_batch,
-                     self.q: q_batch, self.q_mask: q_mask_batch, self.y: y_batch}
+                     self.q: q_batch, self.q_mask: q_mask_batch, self.y: y_batch, self.w2v: w2v_b}
+        print("assigned feed_dict")
         return feed_dict
 
     def _prepro_sent_batch(self,sent_batch):
@@ -314,6 +333,13 @@ class n2nModel(BaseModel):
                 m_mask_batch[n, i] = 1
 
         return x_batch, x_mask_batch, m_mask_batch
+
+    # def _prepro_word_vectors(w2v):
+    #     print "got into the prepro wordvector thing"
+    #     word_vecs = np.zeros([vocab_size,hidden_size])
+    #     for w,v in np.ndindex(word_vecs.shape):
+    #         word_vecs[w,v] = w2v_b[w]
+    #     return word_vecs
 
     def _prepro_ques_batch(self, ques_batch):
         params = self.params

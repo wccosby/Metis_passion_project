@@ -70,6 +70,29 @@ def read_babi_files(file_paths):
     paragraphs = []
     questions = []
     answers = []
+
+    # create the w2v dictionary
+    with open('/Users/williamcosby/Documents/metis/Passion_Project_Stratus/data/glove/glove.6B/glove.6B.50d.txt', 'r') as f:
+        content = f.readlines()
+    # content is a list of the word vectors, so need to split each line and get the word
+    w2v_dict = defaultdict(list)
+    # initialize an unkown word at 0s for the size of the embedding dim
+    w2v_dict['<UNK>'] = [0 for i in range(50)]
+    for vec in content:
+        split_vec = vec.split()
+        num_list = []
+        for num in split_vec[1:]:
+            num_list.append(float(num))
+        # vocab_set.add((split_vec[0],num_list))
+        w2v_dict[split_vec[0]] = num_list
+    # print("WORD2VEC DICT: ", type(w2v_dict))
+    # print("WORD2VEC ACCESS: ", w2v_dict['unk'])
+
+    # populate the vocab set with words in the dictionary
+    # NOTE the bottom code populates the vocab set with all the words in w2v
+    # for key in w2v_dict.keys():
+    #     vocab_set.add(key)
+
     for file_path in file_paths:
         with open(file_path, 'r') as fh:
             lines = fh.readlines()
@@ -84,6 +107,9 @@ def read_babi_files(file_paths):
                 if qm:
                     raw_question = line[2:].strip() # should start from the space after Q:
                     question = _tokenize(raw_question)
+                    # for word in question:
+                    #     if word not in w2v_dict.keys():
+                    #         w2v_dict[word] = [0 for i in range(50)]
                     questions.append(question)
                     vocab_set |= set(question)
                     # now that we've hit a question we know we're at the end of the "story"
@@ -95,49 +121,72 @@ def read_babi_files(file_paths):
                 elif sm:
                     raw_sentence = line[2:].strip()
                     sentence = _tokenize(raw_sentence)
+                    # for word in sentence:
+                    #     if word not in w2v_dict.keys():
+                    #         w2v_dict[word] = [0 for i in range(50)]
                     paragraph.append(sentence)
                     vocab_set |= set(sentence)
                 # line represents an answer
                 elif am:
                     answer = line[2:].strip()
                     answers.append(answer)
+                    # for word in answer:
+                    #     if word not in w2v_dict.keys():
+                    #         w2v_dict[word] = [0 for i in range(50)]
                     vocab_set.add(answer)
                 else:
                     logging.error("Invalid line encountered: line %d in %s" % (line_num + 1, file_path))
 
             print("Loaded %d examples from: %s" % (len(paragraphs), os.path.basename(file_path)))
 
-    return vocab_set, paragraphs, questions, answers
+    return w2v_dict, vocab_set, paragraphs, questions, answers
 
 
 ''' called in return statement of read_babi '''
-def read_babi_split(batch_size, w2v_dictionary, *file_paths_list):
+def read_babi_split(batch_size, *file_paths_list):
     # calls read_babi_files
-    vocab_set_list, paragraphs_list, questions_list, answers_list = zip(*[read_babi_files(file_paths) for file_paths in file_paths_list])
+    w2v_dict, vocab_set_list, paragraphs_list, questions_list, answers_list = zip(*[read_babi_files(file_paths) for file_paths in file_paths_list])
     vocab_set = vocab_set_list[0]
+    w2v_dict = w2v_dict[0]
+    # print("TESTING THE INITIAL ZIP THING: ", type(w2v_dict))
+    # print(w2v_dict['unk'])
     # index as key and word as value
-    idx_to_word = dict((k+1,v) for k, v in enumerate(sorted(vocab_set)))
-    idx_to_word[0] = "<UNK>"
-    # word as key and index as value
-    vocab_map = dict((v, k+1) for k, v in enumerate(sorted(vocab_set))) # this is word -> index (i think) with '<UNK>' as index=0
-    vocab_map["<UNK>"] = 0
+    # idx_to_word = dict((k,v) for k, (word, vector) in enumerate(sorted(vocab_set)))
+    # idx_to_word[0] = "<UNK>"
+    # word as key and index as value this needs to span the entire word vector set
+
+    # need to construct a dictionary of {word: index} and a list of the word vectors as they appear
+    vocab_map = {}
+    w2v_vectors = []
+    idx_to_word = {}
+    for idx, word in enumerate(sorted(vocab_set)):
+        # if idx == 0:
+            # print("WORD TEST: ", word)
+            # print("type fo w2v_dict: ", type(w2v_dict))
+            # print("one last test: ", w2v_dict['unk'])
+        vocab_map[word] = idx
+        w2v_vectors.append(w2v_dict[word])
+        idx_to_word[idx] = word
+    #
+    # vocab_map = dict((word, k) for k, (word, vector)  in enumerate(sorted(vocab_set))) # this is word -> index (i think) with '<UNK>' as index=0
+    # vocab_map["<UNK>"] = 0
     # print "vocab_size: ",len(vocab_map)
     # print idx_to_word
 
 
     ''' get the index of the word, return index for <UNK> token if word is not in the vocabulary '''
     #TODO add the word vector look ups right here...return the vector instead of the index
-    def _get(vm, w2v_dictionary, w): # w = word, vm = vocabulary_map
-        if w in w2v_dictionary.keys():
-            return w2v_dictionary[w]
-        return w2v_dictionary['<UNK>']
+    def _get(vm, w): # w = word, vm = vocabulary_map
+        if w in vm:
+            return vm[w]
+        return 0
 
     ''' this is basically the final step in making the data sets '''
     # TODO word2vec or glove vectors here instead of just indices
     ## Makes the inputs to the networks
-    xs_list = [[[[_get(vocab_map, w2v_dictionary, word) for word in sentence] for sentence in paragraph] for paragraph in paragraphs] for paragraphs in paragraphs_list]
-    qs_list = [[[_get(vocab_map, w2v_dictionary, word) for word in question] for question in questions] for questions in questions_list]
-    ys_list = [[_get(vocab_map, w2v_dictionary, answer) for answer in answers] for answers in answers_list]
+    xs_list = [[[[_get(vocab_map, word) for word in sentence] for sentence in paragraph] for paragraph in paragraphs] for paragraphs in paragraphs_list]
+    qs_list = [[[_get(vocab_map, word) for word in question] for question in questions] for questions in questions_list]
+    ys_list = [[_get(vocab_map, answer) for answer in answers] for answers in answers_list]
 
     # data sets are now a list of word vectors for the sentences instead of list
     # of indices
@@ -149,7 +198,12 @@ def read_babi_split(batch_size, w2v_dictionary, *file_paths_list):
     for data_set in data_sets:
         data_set.vocab_map = vocab_map
         data_set.vocab_size = len(vocab_map)
-    return data_sets, idx_to_word
+    # print "WORD VECTORS!!!!!!!!: ", len(w2v_vectors),len(w2v_vectors[0])
+    w2v_vectors = np.array(w2v_vectors)
+    print("VECTOR TYPE: ",type(w2v_vectors))
+    print("VECTOR TYPE: ",type(w2v_vectors[0][0]))
+    print("VECTOR SHAPE: ",w2v_vectors.shape)
+    return data_sets, idx_to_word, np.array(w2v_vectors)
 
 
 ''' reading in babi data '''
@@ -166,22 +220,9 @@ def read_babi(batch_size, dir_path, task, suffix=""):
         # elif file_name.endswith(suffix + "_test.txt"):
             test_file_paths.append(file_path)
 
-    # create the w2v dictionary
-    with open('/Users/williamcosby/Documents/metis/Passion_Project_Stratus/data/glove/glove.6B/glove.6B.50d.txt', 'r') as f:
-        content = f.readlines()
-    # content is a list of the word vectors, so need to split each line and get the word
-    w2v_dict = defaultdict(list)
-    # initialize an unkown word at 0s for the size of the embedding dim
-    w2v_dict['<UNK>'] = [0 for i in range(50)]
-    for vec in content:
-        split_vec = vec.split()
-        num_list = []
-        for num in split_vec[1:]:
-            num_list.append(float(num))
-        w2v_dict[split_vec[0]] = num_list
 
     ''' calls read_babi_split '''
-    return read_babi_split(batch_size, w2v_dict, train_file_paths, test_file_paths)
+    return read_babi_split(batch_size, train_file_paths, test_file_paths)
 
 
 def split_val(data_set, ratio):

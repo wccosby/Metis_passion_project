@@ -9,6 +9,7 @@ from read_data import DataSet
 
 class BaseModel(object):
     def __init__(self, graph, params, name=None):
+        print("building base model")
         self.graph = graph
         self.params = params
         self.save_dir = params.save_dir
@@ -27,6 +28,7 @@ class BaseModel(object):
             self.actual = None
             self._build_tower()
             self.saver = tf.train.Saver()
+        print("got to the end of building the base model")
 
     def _build_tower(self):
         raise Exception("Implement this!")
@@ -34,16 +36,20 @@ class BaseModel(object):
     def _get_feed_dict(self, batch):
         raise Exception("Implement this!")
 
-    def train_batch(self, sess, learning_rate, batch):
-        feed_dict = self._get_feed_dict(batch)
+    def train_batch(self, sess, learning_rate, batch, w2v):
+        print("TRYNA TRAIN~~~~~~")
+        print(len(w2v))
+        feed_dict = self._get_feed_dict(batch, w2v)
+        print("returned feed_dict")
         feed_dict[self.learning_rate] = learning_rate
         # the things in the list specify the commands to run basically
         ''' actually runs the graph '''
+        print("now running the graph")
         return sess.run([self.opt_op, self.merged_summary, self.global_step], feed_dict=feed_dict)
 
-    def test_batch(self, sess, batch, idx_to_word):
+    def test_batch(self, sess, batch, idx_to_word, w2v):
         actual_batch_size = len(batch[0])
-        feed_dict = self._get_feed_dict(batch)
+        feed_dict = self._get_feed_dict(batch, w2v)
 
 
         actual, predicted, correct_vec, total_loss, summary_str, global_step = \
@@ -61,7 +67,7 @@ class BaseModel(object):
 
         return num_corrects, total_loss, summary_str, global_step
 
-    def train(self, sess, writer, train_data_set, val_data_set, idx_to_word):
+    def train(self, sess, writer, train_data_set, val_data_set, idx_to_word, w2v_vectors):
         # assert isinstance(train_data_set, DataSet)
         # assert isinstance(val_data_set, DataSet)
         params = self.params
@@ -70,6 +76,7 @@ class BaseModel(object):
         num_batches = params.train_num_batches
         anneal_period = params.anneal_period
         anneal_ratio = params.anneal_ratio
+
 
         print("training %d epochs ..." % num_epochs)
         for epoch_idx in range(num_epochs):
@@ -81,21 +88,21 @@ class BaseModel(object):
             for num_batches_completed in range(num_batches):
                 batch = train_data_set.get_next_labeled_batch()
                 ''' calls train_batch '''
-                _, summary_str, global_step = self.train_batch(sess, learning_rate, batch)
+                _, summary_str, global_step = self.train_batch(sess, learning_rate, batch, w2v_vectors)
                 writer.add_summary(summary_str, global_step)
                 pbar.update(num_batches_completed)
             pbar.finish()
             train_data_set.complete_epoch()
 
             if val_data_set and (epoch_idx + 1) % params.val_period == 0:
-                self.eval(sess, train_data_set, idx_to_word, is_val=True)
-                self.eval(sess, val_data_set, idx_to_word, is_val=True)
+                self.eval(sess, train_data_set, idx_to_word, w2v_vectors, is_val=True)
+                self.eval(sess, val_data_set, idx_to_word, w2v_vectors, is_val=True)
 
             if (epoch_idx + 1) % params.save_period == 0:
                 self.save(sess)
         print("training done.")
 
-    def eval(self, sess, eval_data_set, idx_to_word, is_val=False):
+    def eval(self, sess, eval_data_set, idx_to_word, w2v_vectors, is_val=False):
         params = self.params
         print "eval data_set: ", eval_data_set
         num_batches = params.val_num_batches if is_val else params.test_num_batches
@@ -106,7 +113,7 @@ class BaseModel(object):
         pbar.start()
         for num_batches_completed in range(num_batches):
             batch = eval_data_set.get_next_labeled_batch()
-            cur_num_corrects, cur_loss, _, global_step = self.test_batch(sess, batch, idx_to_word)
+            cur_num_corrects, cur_loss, _, global_step = self.test_batch(sess, batch, idx_to_word, w2v_vectors)
             num_corrects += cur_num_corrects
             total += len(batch[0])
             losses.append(cur_loss)
