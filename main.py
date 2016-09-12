@@ -29,7 +29,9 @@ flags.DEFINE_float("anneal_ratio", 0.5, "Annealing ratio [0.5]")
 flags.DEFINE_integer("anneal_period", 25, "Number of epochs for every annealing [25]")
 
 # Common options
-flags.DEFINE_boolean("train", True, "Train? Test if False [False]")
+flags.DEFINE_boolean("train", True, "Train? Train if true [False]")
+flags.DEFINE_boolean("test",False,"Test? Test if True")
+flags.DEFINE_boolean("real_time",False,"run in real time?")
 flags.DEFINE_boolean("load", False, "Load from saved model? [False]")
 flags.DEFINE_boolean("progress", True, "Show progress? [True]")
 flags.DEFINE_boolean("gpu", False, 'Enable GPU? (Linux only) [False]')
@@ -118,6 +120,10 @@ def main(_):
         else:
             model.load(sess)
             model.eval(sess, test_ds, idx_to_word, w2v_vectors)
+        # if Flags.real_time:
+        #     # load a previous model
+        #     model.load(sess)
+        #     model.eval(sess, )
 
 
 if __name__ == "__main__":

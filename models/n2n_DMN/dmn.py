@@ -42,38 +42,45 @@ class MemoryLayer(object):
         # print("W2V SHAPE~~~~~: ",w2v_b.get_shape())
         #TODO here in the .get_variable functons pass in an "initializer=word_embedding_matrix"
         #NOTE the TA, TB, TC matrices are for the temporal encoding (i dont need to initialize them in any way)
-        with tf.name_scope('embeddings'):
-            if not prev_layer: # if this is the first layer then we need to define the A and C embedding matrices
-                if params.tying == 'adj':
-                    A = tf.identity(B, name='A')
-                else:
-                    A = tf.get_variable('A', dtype='float',initializer=w2v_b)
+        # with tf.name_scope('embeddings'):
+        if not prev_layer: # if this is the first layer then we need to define the A and C embedding matrices
+            if params.tying == 'adj':
+                A = tf.identity(B, name='A')
+            else:
+                print("heheheheheheherererererererererere")
+                # A = tf.get_variable('A', dtype='float',shape=[vocab_size,hidden_size])
+                # A = tf.get_variable('A',dtype='float',shape=[vocab_size,hidden_size])
+                A = tf.identity(w2v_b, name='A')
 
-                TA = tf.get_variable('TA',dtype='float',shape=[memory_size,hidden_size])
-                C = tf.get_variable('C', dtype='float', shape=[vocab_size,hidden_size])
+            # TA = tf.identity(w2v_b, name='TA')
+            C = tf.identity(w2v_b, name='C')
+            # TC = tf.identity(w2v_b, name='TC')
+            TA = tf.get_variable('TA',dtype='float',shape=[memory_size,hidden_size])
+            # C = tf.get_variable('C', dtype='float', shape=[vocab_size,hidden_size])
+            TC = tf.get_variable('TC', dtype='float', shape=[memory_size, hidden_size])
+        else:
+            if params.tying == 'adj':
+                A = tf.identity(prev_layer.C, name='A')
+                TA = tf.identity(prev_layer.TC, name='TA')
+                C = tf.get_variable('C', dtype='float', shape=[vocab_size, hidden_size])
                 TC = tf.get_variable('TC', dtype='float', shape=[memory_size, hidden_size])
+            elif params.tying == 'rnn':
+                A = tf.identity(prev_layer.A, name='A')
+                TA = tf.identity(prev_layer.TA, name='TA')
+                C = tf.identity(prev_layer.C, name='C')
+                TC = tf.identity(prev_layer.TC, name='TC')
             else:
-                if params.tying == 'adj':
-                    A = tf.identity(prev_layer.C, name='A')
-                    TA = tf.identity(prev_layer.TC, name='TA')
-                    C = tf.get_variable('C', dtype='float', shape=[vocab_size, hidden_size])
-                    TC = tf.get_variable('TC', dtype='float', shape=[memory_size, hidden_size])
-                elif params.tying == 'rnn':
-                    A = tf.identity(prev_layer.A, name='A')
-                    TA = tf.identity(prev_layer.TA, name='TA')
-                    C = tf.identity(prev_layer.C, name='C')
-                    TC = tf.identity(prev_layer.TC, name='TC')
-                else:
-                    raise Exception('Unknown tying method: %s' % params.tying)
+                raise Exception('Unknown tying method: %s' % params.tying)
 
-            if not prev_layer:
-                u_batch = tf.identity(tensors.first_u_batch, name='u')
-            else:
-                u_batch = tf.add(prev_layer.u_batch, prev_layer.o_batch, name='u')
+        if not prev_layer:
+            u_batch = tf.identity(tensors.first_u_batch, name='u')
+        else:
+            u_batch = tf.add(prev_layer.u_batch, prev_layer.o_batch, name='u')
 
         with tf.name_scope('m'):
             # TODO adjust the embeddings here for pretrained word vectors --> will just be raw input, no A or C matrices
             # NOTE using word vectors that arent adjusted x_batch is the main input for Ax_batch (no lookup)
+            # embedding_init = A.assign(w2v_b)
             Ax_batch = tf.nn.embedding_lookup(A, x_batch)  # [N, M, J, d]
             if params.position_encoding:
                 Ax_batch *= l_aug_aug  # position encoding
@@ -150,7 +157,7 @@ class n2nModel(BaseModel):
             # print "y_batch: ",y_batch
             print("GOT TO JUST BEFORE W2V PLACEHOLDER IS DECALRED")
             # define word vector matrix placeholder
-            w2v_b = tf.placeholder('float',shape=[vocab_size,hidden_size], name='w2v')
+            w2v_b = tf.placeholder(tf.float32,shape=[vocab_size,hidden_size], name='w2v')
 
             # define learning rate
             learning_rate = tf.placeholder('float',name='learning_rate')
@@ -169,7 +176,8 @@ class n2nModel(BaseModel):
             # print "a_batch: ", a_batch
         ## define what happens to the question embedding initially
         with tf.name_scope('first_u'):
-            B = tf.get_variable('B',dtype='float',shape=[vocab_size,hidden_size])
+            # B = tf.get_variable('B',dtype='float',shape=[vocab_size,hidden_size])
+            B = tf.identity(w2v_b, name='B')
             ## embedding_lookup --> looks up ids in a list of embedding tensors
             # here B is interpreted as a partition of of a larger embedding tensor (which is B)
             # q_batch here contains the ids to be looked up in B
