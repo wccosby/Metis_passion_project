@@ -47,16 +47,14 @@ class MemoryLayer(object):
             if params.tying == 'adj':
                 A = tf.identity(B, name='A')
             else:
-                print("heheheheheheherererererererererere")
-                # A = tf.get_variable('A', dtype='float',shape=[vocab_size,hidden_size])
-                # A = tf.get_variable('A',dtype='float',shape=[vocab_size,hidden_size])
-                A = tf.identity(w2v_b, name='A')
+                A = tf.get_variable('A', dtype='float',shape=[vocab_size,hidden_size])
+                # A = tf.identity(w2v_b, name='A')
 
             # TA = tf.identity(w2v_b, name='TA')
-            C = tf.identity(w2v_b, name='C')
+            # C = tf.identity(w2v_b, name='C')
             # TC = tf.identity(w2v_b, name='TC')
             TA = tf.get_variable('TA',dtype='float',shape=[memory_size,hidden_size])
-            # C = tf.get_variable('C', dtype='float', shape=[vocab_size,hidden_size])
+            C = tf.get_variable('C', dtype='float', shape=[vocab_size,hidden_size])
             TC = tf.get_variable('TC', dtype='float', shape=[memory_size, hidden_size])
         else:
             if params.tying == 'adj':
@@ -155,7 +153,7 @@ class n2nModel(BaseModel):
             # define the target (y_batch, shape=[N], int32)
             y_batch = tf.placeholder('int32', shape=[batch_size],name='y')
             # print "y_batch: ",y_batch
-            print("GOT TO JUST BEFORE W2V PLACEHOLDER IS DECALRED")
+            # print("GOT TO JUST BEFORE W2V PLACEHOLDER IS DECALRED")
             # define word vector matrix placeholder
             w2v_b = tf.placeholder(tf.float32,shape=[vocab_size,hidden_size], name='w2v')
 
@@ -295,27 +293,27 @@ class n2nModel(BaseModel):
     note that this is overriding and valled from base_model
     """
     def _get_feed_dict(self,batch, w2v):
-        print("GET FEED DICT TOTALLY JUST GOT CALLED MOFO")
-        print(len(w2v))
+        # print("GET FEED DICT TOTALLY JUST GOT CALLED MOFO")
+        # print(len(w2v))
         sent_batch, ques_batch = batch[:2]
         if len(batch) > 2:
             label_batch = batch[2]
         else:
             label_batch = np.zeros([len(sent_batch)])
-        print("about to assign w2v")
+        # print("about to assign w2v")
         w2v_b = w2v
-        print("after assigning w2v")
+        # print("after assigning w2v")
         # print "XBATCH: ", x_batch[:5]
         # print "WORD@VECASDFASFWEA: ", len(w2v)
         x_batch, x_mask_batch, m_mask_batch = self._prepro_sent_batch(sent_batch)
-        print("processed x_batch")
+        # print("processed x_batch")
         q_batch, q_mask_batch = self._prepro_ques_batch(ques_batch)
-        print("processed q_batch")
+        # print("processed q_batch")
         y_batch = self._prepro_label_batch(label_batch)
-        print("processed y_batch")
+        # print("processed y_batch")
         feed_dict = {self.x: x_batch, self.x_mask: x_mask_batch, self.m_mask: m_mask_batch,
                      self.q: q_batch, self.q_mask: q_mask_batch, self.y: y_batch, self.w2v: w2v_b}
-        print("assigned feed_dict")
+        # print("assigned feed_dict")
         return feed_dict
 
     def _prepro_sent_batch(self,sent_batch):

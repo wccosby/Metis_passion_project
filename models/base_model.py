@@ -9,7 +9,7 @@ from read_data import DataSet
 
 class BaseModel(object):
     def __init__(self, graph, params, name=None):
-        print("building base model")
+        # print("building base model")
         self.graph = graph
         self.params = params
         self.save_dir = params.save_dir
@@ -28,7 +28,7 @@ class BaseModel(object):
             self.actual = None
             self._build_tower()
             self.saver = tf.train.Saver()
-        print("got to the end of building the base model")
+        # print("got to the end of building the base model")
 
     def _build_tower(self):
         raise Exception("Implement this!")
@@ -37,14 +37,14 @@ class BaseModel(object):
         raise Exception("Implement this!")
 
     def train_batch(self, sess, learning_rate, batch, w2v):
-        print("TRYNA TRAIN~~~~~~")
-        print(len(w2v))
+        # print("TRYNA TRAIN~~~~~~")
+        # print(len(w2v))
         feed_dict = self._get_feed_dict(batch, w2v)
-        print("returned feed_dict")
+        # print("returned feed_dict")
         feed_dict[self.learning_rate] = learning_rate
         # the things in the list specify the commands to run basically
         ''' actually runs the graph '''
-        print("now running the graph")
+        # print("now running the graph")
         return sess.run([self.opt_op, self.merged_summary, self.global_step], feed_dict=feed_dict)
 
     def test_batch(self, sess, batch, idx_to_word, w2v):
