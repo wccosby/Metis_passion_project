@@ -127,13 +127,15 @@ class BaseModel(object):
 
     def save(self, sess):
         print("saving model ...")
-        save_path = os.path.join(self.save_dir, self.name)
+        save_path = os.path.join(self.save_dir, "test_save")
         self.saver.save(sess, save_path, self.global_step)
 
     def load(self, sess):
         print("loading model ...")
         checkpoint = tf.train.get_checkpoint_state(self.save_dir)
+        print "checkpoint: ", checkpoint
+        print checkpoint.model_checkpoint_path
         try:
-            self.saver.restore(sess, checkpoint.model_checkpoint_path)
+            self.saver.restore(sess, "save/test_save-88")
         except:
             print("couldnt load a checkpoint")

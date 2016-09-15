@@ -8,7 +8,8 @@ from collections import defaultdict
 class DataSet(object):
     def __init__(self, batch_size, idxs, xs, qs, ys, include_leftover=False, name=""):
         # assert len(xs) == len(qs) == len(ys), "X, Q, and Y sizes don't match."
-        print "batch size: ", batch_size
+        # print "batch size: ", batch_size
+        # print "len(xs): ", len(xs)
         assert batch_size <= len(xs), "batch size cannot be greater than data size."
         self.name = name or "dataset"
         self.idxs = idxs
@@ -65,7 +66,8 @@ called from read_babi_split
 defines the vocabulary, paragraphs (x input), questions and answers
 '''
 def read_babi_files(file_paths):
-
+    # print("in read_babi_files")
+    # print(file_paths)
     vocab_set = set()
     paragraphs = []
     questions = []
@@ -92,12 +94,15 @@ def read_babi_files(file_paths):
     # NOTE the bottom code populates the vocab set with all the words in w2v
     # for key in w2v_dict.keys():
     #     vocab_set.add(key)
-
+    # print("just above file_path in file_paths loop")
     for file_path in file_paths:
+        # print("everything seems okay")
         with open(file_path, 'r') as fh:
+            # print("got into the with open part")
             lines = fh.readlines()
             paragraph = []
             for line_num, line in enumerate(lines):
+                # print("got into line_num, line loop")
                 line = line.strip('\n')
                 sm = _s_re.match(line) # matches pattern of a sentence
                 qm = _q_re.match(line) # matches pattern of a question
@@ -144,6 +149,7 @@ def read_babi_files(file_paths):
 
 ''' called in return statement of read_babi '''
 def read_babi_split(batch_size, *file_paths_list):
+    # print("got into read_babi_split")
     # calls read_babi_files
     w2v_dict, vocab_set_list, paragraphs_list, questions_list, answers_list = zip(*[read_babi_files(file_paths) for file_paths in file_paths_list])
     vocab_set = vocab_set_list[0]
@@ -180,7 +186,7 @@ def read_babi_split(batch_size, *file_paths_list):
         if w in vm:
             return vm[w]
         return 0
-
+    print("checking length of the vocab_map: ", len(vocab_map))
     ''' this is basically the final step in making the data sets '''
     # TODO word2vec or glove vectors here instead of just indices
     ## Makes the inputs to the networks
@@ -208,6 +214,7 @@ def read_babi_split(batch_size, *file_paths_list):
 
 ''' reading in babi data '''
 def read_babi(batch_size, dir_path, task, suffix=""):
+    print("got read command...")
     prefix = "%s" % str(task)
     train_file_paths = []
     test_file_paths = []

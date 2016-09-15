@@ -1,2 +1,6 @@
-model_checkpoint_path: "n2nModel-330"
-all_model_checkpoint_paths: "n2nModel-330"
+model_checkpoint_path: "test_save-110"
+all_model_checkpoint_paths: "test_save-22"
+all_model_checkpoint_paths: "test_save-44"
+all_model_checkpoint_paths: "test_save-66"
+all_model_checkpoint_paths: "test_save-88"
+all_model_checkpoint_paths: "test_save-110"

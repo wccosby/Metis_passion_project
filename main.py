@@ -24,7 +24,7 @@ flags.DEFINE_integer("batch_size", 1, "Batch size during training and testing [3
 flags.DEFINE_float("init_mean", 0, "Initial weight mean [0]")
 flags.DEFINE_float("init_std", 0.1, "Initial weight std [0.1]")
 flags.DEFINE_float("init_lr", 0.01, "Initial learning rate [0.01]")
-flags.DEFINE_integer("num_epochs", 25, "Total number of epochs for training [100]")
+flags.DEFINE_integer("num_epochs", 5, "Total number of epochs for training [100]")
 flags.DEFINE_float("anneal_ratio", 0.5, "Annealing ratio [0.5]")
 flags.DEFINE_integer("anneal_period", 25, "Number of epochs for every annealing [25]")
 
@@ -36,7 +36,7 @@ flags.DEFINE_boolean("load", False, "Load from saved model? [False]")
 flags.DEFINE_boolean("progress", True, "Show progress? [True]")
 flags.DEFINE_boolean("gpu", False, 'Enable GPU? (Linux only) [False]')
 flags.DEFINE_integer("val_period", 5, "Val period (for display purpose only) [5]")
-flags.DEFINE_integer("save_period", 15, "Save period [10]")
+flags.DEFINE_integer("save_period", 1, "Save period [10]")
 
 # Debugging
 flags.DEFINE_boolean("draft", False, "Draft? (quick build) [False]")
