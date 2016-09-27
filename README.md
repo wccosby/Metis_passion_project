@@ -1,5 +1,7 @@
-# Passion Project: Stratus
-Final Project for Metis Data Science Bootcamp, automated customer service agent
+# Passion Project: Chat.ly
+Final Project for Metis Data Science Bootcamp, automated customer service agent.
+
+This repository is meant to be a testing ground for variations on dynamic memory networks.  For a production version of this project built out in Python Flask and supporting AWS see chatly_web repository.
 
 # Project Objectives
 * Understand state of the art for dynamic memory networks.
