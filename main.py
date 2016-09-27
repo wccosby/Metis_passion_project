@@ -36,7 +36,7 @@ flags.DEFINE_boolean("load", False, "Load from saved model? [False]")
 flags.DEFINE_boolean("progress", True, "Show progress? [True]")
 flags.DEFINE_boolean("gpu", False, 'Enable GPU? (Linux only) [False]')
 flags.DEFINE_integer("val_period", 5, "Val period (for display purpose only) [5]")
-flags.DEFINE_integer("save_period", 1, "Save period [10]")
+flags.DEFINE_integer("save_period", 10, "Save period [10]")
 
 # Debugging
 flags.DEFINE_boolean("draft", False, "Draft? (quick build) [False]")

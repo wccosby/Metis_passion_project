@@ -190,6 +190,10 @@ def read_babi_split(batch_size, *file_paths_list):
     ''' this is basically the final step in making the data sets '''
     # TODO word2vec or glove vectors here instead of just indices
     ## Makes the inputs to the networks
+    print("PARAGRAPHS_LIST: ", len(paragraphs_list))
+    print(len(paragraphs_list[0]))
+    print(len(paragraphs_list[0][0]))
+    print(paragraphs_list[0][5])
     xs_list = [[[[_get(vocab_map, word) for word in sentence] for sentence in paragraph] for paragraph in paragraphs] for paragraphs in paragraphs_list]
     qs_list = [[[_get(vocab_map, word) for word in question] for question in questions] for questions in questions_list]
     ys_list = [[_get(vocab_map, answer) for answer in answers] for answers in answers_list]

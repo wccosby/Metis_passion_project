@@ -44,18 +44,18 @@ class MemoryLayer(object):
         #NOTE the TA, TB, TC matrices are for the temporal encoding (i dont need to initialize them in any way)
         # with tf.name_scope('embeddings'):
         if not prev_layer: # if this is the first layer then we need to define the A and C embedding matrices
-            if params.tying == 'adj':
-                A = tf.identity(B, name='A')
-            else:
-                A = tf.get_variable('A', dtype='float',shape=[vocab_size,hidden_size])
-                # A = tf.identity(w2v_b, name='A')
+            # if params.tying == 'adj':
+            #     A = tf.identity(B, name='A')
+            # else:
+            #     # A = tf.get_variable('A', dtype='float',shape=[vocab_size,hidden_size])
+            A = tf.identity(w2v_b, name='A')
 
-            # TA = tf.identity(w2v_b, name='TA')
-            # C = tf.identity(w2v_b, name='C')
-            # TC = tf.identity(w2v_b, name='TC')
-            TA = tf.get_variable('TA',dtype='float',shape=[memory_size,hidden_size])
-            C = tf.get_variable('C', dtype='float', shape=[vocab_size,hidden_size])
-            TC = tf.get_variable('TC', dtype='float', shape=[memory_size, hidden_size])
+            TA = tf.identity(w2v_b, name='TA')
+            C = tf.identity(w2v_b, name='C')
+            TC = tf.identity(w2v_b, name='TC')
+            # TA = tf.get_variable('TA',dtype='float',shape=[memory_size,hidden_size])
+            # C = tf.get_variable('C', dtype='float', shape=[vocab_size,hidden_size])
+            # TC = tf.get_variable('TC', dtype='float', shape=[memory_size, hidden_size])
         else:
             if params.tying == 'adj':
                 A = tf.identity(prev_layer.C, name='A')
@@ -221,7 +221,7 @@ class n2nModel(BaseModel):
             else:
                 last_u_batch = tf.add(current_layer.u_batch, current_layer.o_batch, name='last_u')
 
-        """ answer module """ ## TODO i think...
+        """ answer module """
         with tf.variable_scope('ap'):
             if params.tying == 'adj':
                 W = tf.transpose(current_layer.C, name='W')
@@ -231,9 +231,6 @@ class n2nModel(BaseModel):
                 raise Exception("Unsupported tying method: %s" % params.tying)
             logit_batch = tf.matmul(last_u_batch, W, name='logit')
             ap_batch = tf.nn.softmax(logit_batch, name='ap')
-            # print ap_batch.eval(self._get_feed_dict)
-            #TODO UGHAUJSDFJAWJEFAJWEFJWAJF FUUUUUUUUCCCCCKKKKKKKKK
-            # print "ap_batch: ", ap_batch.eval()
 
         """ Define loss for the networks """
         with tf.name_scope("loss") as loss_scope:
@@ -257,7 +254,6 @@ class n2nModel(BaseModel):
             clipped_grads_and_vars = [(tf.clip_by_norm(grad, params.max_grad_norm), var) for grad, var in grads_and_vars]
             opt_op = opt.apply_gradients(clipped_grads_and_vars, global_step=self.global_step)
 
-        # print("ITS NOT FUCKED HERE!!!")
         # tensors
         self.total_loss = total_loss
         self.correct_vec = correct_vec
